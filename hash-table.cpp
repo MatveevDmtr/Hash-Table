@@ -137,6 +137,20 @@ void HTableDtor(htab_t* hashtable)
     Assert(hashtable == nullptr);
     Assert(hashtable->table == nullptr);
 
+    node_t* next_node = nullptr;
+
+    for (int i = 0; i < hashtable->size; i++)
+    {
+        node_t* node = hashtable->table[i].head;
+        for (int list_i = 0; list_i < hashtable->table[i].size; list_i++)
+        {
+            next_node = node->next;
+            free(node);
+            node = next_node;
+        }
+        log("\n");
+    }
+
     free(hashtable->table);
 }
 
