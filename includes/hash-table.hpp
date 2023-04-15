@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <ctype.h>
+#include <string.h>
 #include "logging/logging.hpp"
 
 typedef struct node
@@ -19,6 +21,12 @@ typedef struct hashtable
     int     size;
 } htab_t;
 
+typedef struct TextBuf
+{
+    char* buf;
+    int size;
+} textbuf_t;
+
 
 //start prototypes
 void HTableCtor(htab_t* hashtable, int size);
@@ -29,6 +37,12 @@ int  SearchWord(htab_t* hashtable, const char* word);
 int Hash(const char* word);
 node_t* NewNode(const char* word);
 void HTableDump(htab_t* hashtable);
+
+int ReadFile(const char* filename, textbuf_t* textbuf);
+int GetFileSize(FILE* file);
+void FillHTable(htab_t* hashtable, textbuf_t* textbuf);
+int TextToBuffer(FILE* file, textbuf_t* textbuf);
+FILE* OpenReadFile(const char* filename);
 
 int Hash_1(const char* word);
 int Hash_2(const char* word);

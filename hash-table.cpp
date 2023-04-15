@@ -2,15 +2,23 @@
 
 #define HASHFUNC 0
 
+const char* READ_FILE_NAME = "input.txt";
+
 int main()
 {
     htab_t hashtable = {};
+    textbuf_t textbuf = {};
+
+    ReadFile(READ_FILE_NAME, &textbuf);    
+    
     HTableCtor(&hashtable, 10);
     
-    InsertWord(&hashtable, "Dima");
-    InsertWord(&hashtable, "Asss");
+    FillHTable(&hashtable, &textbuf);
 
-    SearchWord(&hashtable, "Dimas");
+    //InsertWord(&hashtable, "Dima");
+    //InsertWord(&hashtable, "Asss");
+
+    //SearchWord(&hashtable, "Dimas");
     HTableDump(&hashtable);
     
     HTableDtor(&hashtable);
@@ -100,26 +108,26 @@ int Hash_4(const char* word)
 
 int Hash_5(const char* word)
 {
-    int sum = 0;
+    int value = 0;
     int i = 0;
     while (word[i] != '\0')
     {
-        sum += word[i];
+        value = ((value << 1) | (value >> (sizeof (int) - 1))) ^ word[i];
         i++;
     }
-    return sum;
+    return value;
 }
 
 int Hash_6(const char* word)
 {
-    int sum = 0;
+    int value = 0;
     int i = 0;
     while (word[i] != '\0')
     {
-        sum += word[i];
+        value = ((value >> 1) | (value << (sizeof (int) - 1))) ^ word[i];
         i++;
     }
-    return sum;
+    return value;
 }
 
 void HTableCtor(htab_t* hashtable, int size)
@@ -169,4 +177,78 @@ void HTableDump(htab_t* hashtable)
         }
         log("\n");
     }
+}
+
+FILE* OpenReadFile(const char* filename)
+{
+    FILE* r_file = fopen(filename, "rb");
+
+    if(r_file == NULL)
+    {
+        print_log(FRAMED, "FileError: No such file or directory");
+        log("File %s not found\n", filename);
+        return nullptr;
+    }
+
+    return r_file;
+}
+
+int TextToBuffer(FILE* file, textbuf_t* textbuf)
+{
+    size_t num_read_sym = fread(textbuf->buf, sizeof(char), textbuf->size, file);
+    Assert(num_read_sym == 0);
+
+    return 1;
+}
+
+void FillHTable(htab_t* hashtable, textbuf_t* textbuf)
+{
+    int buf_index = 0;
+    char* word = nullptr;
+    while (buf_index < textbuf->size)
+    {
+        word = (char*) textbuf->buf + buf_index;
+        while (isalpha(textbuf->buf[buf_index]))
+        {
+            buf_index++;
+        }
+
+        textbuf->buf[buf_index] = '\0';
+        buf_index++;
+
+        InsertWord(hashtable, word);        
+    }
+}
+
+int GetFileSize(FILE* file)
+{
+    Assert(file == NULL);
+    
+    fseek(file, 0, SEEK_END);
+
+    int size = ftell(file);
+
+    fseek(file, 0, SEEK_SET);
+
+    log("File size = %d\n", size);
+
+    return size;
+}
+
+int ReadFile(const char* filename, textbuf_t* textbuf)
+{
+    FILE* text_file = OpenReadFile(filename);
+
+    textbuf->size = GetFileSize(text_file);
+
+    char* temp_ptr = (char*) calloc (textbuf->size, sizeof(char));
+    Assert(temp_ptr == nullptr);
+
+    textbuf->buf = temp_ptr;
+
+    TextToBuffer(text_file, textbuf);
+
+    fclose(text_file);
+
+    return 0;
 }
