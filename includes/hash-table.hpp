@@ -9,6 +9,13 @@ typedef struct node
     struct node* next;
 } node_t;
 
+typedef struct WordsBuf
+{
+    const char** buf;
+    int size;
+    int index;
+} wordsbuf_t;
+
 typedef struct hashtable_list
 {
     node_t* head;
@@ -32,7 +39,7 @@ typedef struct TextBuf
 void HTableCtor(htab_t* hashtable, int size);
 void HTableDtor(htab_t* hashtable);
 
-void InsertWord(htab_t* hashtable, const char* word);
+int InsertWord(htab_t* hashtable, const char* word);
 int  SearchWord(htab_t* hashtable, const char* word);
 int Hash(const char* word);
 node_t* NewNode(const char* word);
@@ -43,6 +50,10 @@ int GetFileSize(FILE* file);
 void FillHTable(htab_t* hashtable, textbuf_t* textbuf);
 int TextToBuffer(FILE* file, textbuf_t* textbuf);
 FILE* OpenReadFile(const char* filename);
+FILE* OpenWriteFile(const char* filename);
+
+void WordToBuf(wordsbuf_t* words_buf, const char* word);
+void HTableSaveStats(htab_t* hashtable, const char* filename);
 
 int Hash_1(const char* word);
 int Hash_2(const char* word);

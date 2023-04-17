@@ -3,6 +3,9 @@
 #define HASHFUNC 0
 
 const char* READ_FILE_NAME = "input.txt";
+const char* CSV_FILE_NAME = "result/table_stats.csv";
+const int DEFAULT_WORDS_NUM = 100;
+const int ELEMS_IN_LIST = 15;
 
 int main()
 {
@@ -15,33 +18,47 @@ int main()
     
     FillHTable(&hashtable, &textbuf);
 
-    //InsertWord(&hashtable, "Dima");
-    //InsertWord(&hashtable, "Asss");
-
-    //SearchWord(&hashtable, "Dimas");
     HTableDump(&hashtable);
+
+    HTableSaveStats(&hashtable, CSV_FILE_NAME);
     
     HTableDtor(&hashtable);
 }
 
-void InsertWord(htab_t* hashtable, const char* word)
+int InsertWord(htab_t* hashtable, const char* word)
 {
-    int index = Hash_3(word);
+    int index = Hash_3(word) % hashtable->size;
+    log("table size: %d\n", hashtable->size);
+
+    log("index in InsertWord(): %d\n", index);
 
     if (index >= hashtable->size)
     {
         print_log(FRAMED, "HashError: hash value is too large");
     }
 
+    node_t* node = hashtable->table[index].head;
+    for (int i = 0; i < hashtable->table[index].size; i++)
+    {
+        if (!strcmp(word, node->elem))
+        {
+            log("Word %s is already here\n", word);
+            return 0;
+        }
+        node = node->next;
+    }
+
     node_t* next = hashtable->table[index].head;
     hashtable->table[index].head = NewNode(word);
     hashtable->table[index].head->next = next;
     hashtable->table[index].size++;
+
+    return 0;
 }
 
 int SearchWord(htab_t* hashtable, const char* word)
 {
-    int index = Hash_3(word);
+    int index = Hash_3(word) % hashtable->size;
 
     if (index >= hashtable->size)
     {
@@ -166,6 +183,8 @@ void HTableDump(htab_t* hashtable)
 {
     Assert(hashtable == nullptr);
 
+    log("\nHashTable Dump:\n");
+
     for (int i = 0; i < hashtable->size; i++)
     {
         log("[%d] (%d elems): ", i, hashtable->table[i].size);
@@ -177,6 +196,25 @@ void HTableDump(htab_t* hashtable)
         }
         log("\n");
     }
+}
+
+void HTableSaveStats(htab_t* hashtable, const char* filename)
+{
+    FILE* csv_file = OpenWriteFile(filename);
+
+    Assert(hashtable == nullptr);
+
+    log("\nHashTable Write\n");
+
+    fprintf(csv_file, "Hash, Number of words\n");
+
+    for (int i = 0; i < hashtable->size; i++)
+    {
+        log("write line\n");
+        fprintf(csv_file, "%d, %d\n", i, hashtable->table[i].size);
+    }
+
+    fclose(csv_file);
 }
 
 FILE* OpenReadFile(const char* filename)
@@ -193,6 +231,20 @@ FILE* OpenReadFile(const char* filename)
     return r_file;
 }
 
+FILE* OpenWriteFile(const char* filename)
+{
+    FILE* w_file = fopen(filename, "wb");
+
+    if(w_file == NULL)
+    {
+        print_log(FRAMED, "FileError: No such file or directory");
+        log("File %s not found\n", filename);
+        return nullptr;
+    }
+
+    return w_file;
+}
+
 int TextToBuffer(FILE* file, textbuf_t* textbuf)
 {
     size_t num_read_sym = fread(textbuf->buf, sizeof(char), textbuf->size, file);
@@ -203,21 +255,54 @@ int TextToBuffer(FILE* file, textbuf_t* textbuf)
 
 void FillHTable(htab_t* hashtable, textbuf_t* textbuf)
 {
-    int buf_index = 0;
+    int textbuf_i = 0;
     char* word = nullptr;
-    while (buf_index < textbuf->size)
+
+    const char** temp_ptr_wbuf = (const char**) calloc (DEFAULT_WORDS_NUM, sizeof(char*));
+    Assert(temp_ptr_wbuf == nullptr);
+    wordsbuf_t words_buf = {.buf = temp_ptr_wbuf,
+                            .size = DEFAULT_WORDS_NUM,
+                            .index = 0};
+
+    while (textbuf_i < textbuf->size)
     {
-        word = (char*) textbuf->buf + buf_index;
-        while (isalpha(textbuf->buf[buf_index]))
+        word = (char*) textbuf->buf + textbuf_i;
+        while (isalpha(textbuf->buf[textbuf_i]))
         {
-            buf_index++;
+            textbuf_i++;
         }
 
-        textbuf->buf[buf_index] = '\0';
-        buf_index++;
+        textbuf->buf[textbuf_i] = '\0';
+        textbuf_i++;
 
-        InsertWord(hashtable, word);        
+        Assert(word == nullptr);
+        if (word && *word != '\0')  WordToBuf(&words_buf, word);        
     }
+
+    list_t* temp_ptr_table = (list_t*) realloc (hashtable->table, ((words_buf.index / ELEMS_IN_LIST) + 1) * sizeof(list_t));
+    Assert(temp_ptr_table == nullptr);
+    hashtable->table = temp_ptr_table;
+    hashtable->size = (words_buf.index / ELEMS_IN_LIST) + 1;
+
+    for (int i = 0; i < words_buf.index; i++)
+    {
+        Assert(words_buf.buf[i] == nullptr);
+        InsertWord(hashtable, words_buf.buf[i]);
+    }
+    free(words_buf.buf);
+}
+
+void WordToBuf(wordsbuf_t* words_buf, const char* word)
+{
+    if (words_buf->index >= words_buf->size)
+    {
+        const char** temp_ptr = (const char**) realloc (words_buf->buf, 2 * words_buf->size * sizeof(char*));
+        Assert(temp_ptr == nullptr);
+        words_buf->buf = temp_ptr;
+    }
+
+    words_buf->buf[words_buf->index] = word;
+    words_buf->index++;
 }
 
 int GetFileSize(FILE* file)
