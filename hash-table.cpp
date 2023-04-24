@@ -1,44 +1,58 @@
 #include "includes/hash-table.hpp"
 
-#define HASHFUNC 0
+//#define HASHFUNC Hash_6
 
-const char* READ_FILE_NAME = "input.txt";
+const char* READ_FILE_NAME = "Fahrenheit_451.txt";
 const char* CSV_FILE_NAME = "result/table_stats.csv";
+const char* RES_DIR = "result/statistics/";
+const char* RES_EXT = ".csv";
 const int DEFAULT_WORDS_NUM = 100;
-const int ELEMS_IN_LIST = 15;
+const int ELEMS_IN_LIST = 43;
 
 int main()
 {
-    htab_t hashtable = {};
     textbuf_t textbuf = {};
 
-    ReadFile(READ_FILE_NAME, &textbuf);    
-    
-    HTableCtor(&hashtable, 10);
-    
-    FillHTable(&hashtable, &textbuf);
+    ReadFile(READ_FILE_NAME, &textbuf);
 
-    HTableDump(&hashtable);
+    TestHashFunc(&textbuf, Hash_Always1, "hash_always1");
+    TestHashFunc(&textbuf, Hash_FirstASCII, "hash_firstASCII");
+    TestHashFunc(&textbuf, Hash_Strlen, "hash_strlen");
+    TestHashFunc(&textbuf, Hash_SumASCII, "hash_sumASCII");
+    TestHashFunc(&textbuf, Hash_ROL, "hash_rol");
+    TestHashFunc(&textbuf, Hash_ROR, "hash_ror");
+    TestHashFunc(&textbuf, Hash_Rs, "hash_rs");    
+}
 
-    HTableSaveStats(&hashtable, CSV_FILE_NAME);
+void TestHashFunc(textbuf_t* textbuf, size_t (*HashFunc)(const char * word), const char* hashfunc_name)
+{
+    char filepath[50] = {};
+    strcat(strcat(strcpy(filepath, RES_DIR), hashfunc_name), RES_EXT);
+
+    htab_t hashtable = {};
+
+    HTableCtor(&hashtable, 10, HashFunc);
+    
+    FillHTable(&hashtable, textbuf);
+
+    HTableSaveStats(&hashtable, filepath);
     
     HTableDtor(&hashtable);
 }
 
 int InsertWord(htab_t* hashtable, const char* word)
 {
-    int index = Hash_3(word) % hashtable->size;
-    log("table size: %d\n", hashtable->size);
+    Assert(hashtable == nullptr);
 
-    log("index in InsertWord(): %d\n", index);
+    size_t index = hashtable->HashFunc(word) % hashtable->size;
+    //log("table size: %d\n", hashtable->size);
 
-    if (index >= hashtable->size)
-    {
-        print_log(FRAMED, "HashError: hash value is too large");
-    }
+    //log("index in InsertWord(): %d\n", index);
 
     node_t* node = hashtable->table[index].head;
-    for (int i = 0; i < hashtable->table[index].size; i++)
+
+    //log("size: %ld\n", hashtable->table[index].size);
+    for (size_t i = 0; i < hashtable->table[index].size; i++)
     {
         if (!strcmp(word, node->elem))
         {
@@ -47,7 +61,7 @@ int InsertWord(htab_t* hashtable, const char* word)
         }
         node = node->next;
     }
-
+    //log("adding word %s\n", word);
     node_t* next = hashtable->table[index].head;
     hashtable->table[index].head = NewNode(word);
     hashtable->table[index].head->next = next;
@@ -58,7 +72,7 @@ int InsertWord(htab_t* hashtable, const char* word)
 
 int SearchWord(htab_t* hashtable, const char* word)
 {
-    int index = Hash_3(word) % hashtable->size;
+    size_t index = hashtable->HashFunc(word) % hashtable->size;
 
     if (index >= hashtable->size)
     {
@@ -66,24 +80,26 @@ int SearchWord(htab_t* hashtable, const char* word)
         return 0;
     }
 
-    node_t* node = hashtable->table[index].head;
-    bool found = 0;
-    for (int list_i = 0; list_i < hashtable->table[index].size; list_i++)
+    int res = SearchInList(&(hashtable->table[index]), word);
+    return res;
+}
+
+int SearchInList(list_t* list, const char* word)
+{
+    node_t* node = list->head;
+
+    for (size_t list_i = 0; list_i < list->size; list_i++)
     {
         if (!strcmp(node->elem, word))
         {
-            printf("Word \"%s\" found!\n", word);
-            found = 1;
-            break;
+            log("Word \"%s\" found!\n", word);
+            return list_i;
         }
         node = node->next;
     }
-    if (!found) 
-    {
-        printf("Word \"%s\" not found.\n", word);
-        return 0;
-    }
-    return 1;
+
+    log("Word \"%s\" not found!\n", word);    
+    return -1;
 }
 
 node_t* NewNode(const char* word)
@@ -96,24 +112,24 @@ node_t* NewNode(const char* word)
     return node;
 }
 
-int Hash_1(const char* word)
+size_t Hash_Always1(const char* word)
 {
     return 1;
 }
 
-int Hash_2(const char* word)
+size_t Hash_FirstASCII(const char* word)
 {
     return word[0];
 }
 
-int Hash_3(const char* word)
+size_t Hash_Strlen(const char* word)
 {
     return strlen(word);
 }
 
-int Hash_4(const char* word)
+size_t Hash_SumASCII(const char* word)
 {
-    int sum = 0;
+    size_t sum = 0;
     int i = 0;
     while (word[i] != '\0')
     {
@@ -123,9 +139,9 @@ int Hash_4(const char* word)
     return sum;
 }
 
-int Hash_5(const char* word)
+size_t Hash_ROL(const char* word)
 {
-    int value = 0;
+    size_t value = 0;
     int i = 0;
     while (word[i] != '\0')
     {
@@ -135,9 +151,9 @@ int Hash_5(const char* word)
     return value;
 }
 
-int Hash_6(const char* word)
+size_t Hash_ROR(const char* word)
 {
-    int value = 0;
+    size_t value = 0;
     int i = 0;
     while (word[i] != '\0')
     {
@@ -147,7 +163,26 @@ int Hash_6(const char* word)
     return value;
 }
 
-void HTableCtor(htab_t* hashtable, int size)
+size_t Hash_Rs(const char * word)
+{
+
+    static const unsigned int b = 378551;
+    unsigned int a = 63689;
+    size_t value = 0;
+
+    int i = 0;
+    while (word[i] != '\0')
+    {
+        value = value * a + (unsigned char) word[i];
+        a *= b;
+        i++;
+    }
+
+    return value;
+
+}
+
+void HTableCtor(htab_t* hashtable, size_t size, size_t (*HashFunc)(const char * word))
 {
     list_t* temp_ptr = (list_t*) calloc (size, sizeof(list_t));
 
@@ -155,6 +190,7 @@ void HTableCtor(htab_t* hashtable, int size)
 
     hashtable->table = temp_ptr;
     hashtable->size  = size;
+    hashtable->HashFunc = HashFunc;
 }
 
 void HTableDtor(htab_t* hashtable)
@@ -164,10 +200,10 @@ void HTableDtor(htab_t* hashtable)
 
     node_t* next_node = nullptr;
 
-    for (int i = 0; i < hashtable->size; i++)
+    for (size_t i = 0; i < hashtable->size; i++)
     {
         node_t* node = hashtable->table[i].head;
-        for (int list_i = 0; list_i < hashtable->table[i].size; list_i++)
+        for (size_t list_i = 0; list_i < hashtable->table[i].size; list_i++)
         {
             next_node = node->next;
             free(node);
@@ -185,11 +221,13 @@ void HTableDump(htab_t* hashtable)
 
     log("\nHashTable Dump:\n");
 
-    for (int i = 0; i < hashtable->size; i++)
+    log("hashtable size: %ld\n", hashtable->size);
+
+    for (size_t i = 0; i < hashtable->size; i++)
     {
         log("[%d] (%d elems): ", i, hashtable->table[i].size);
         node_t* node = hashtable->table[i].head;
-        for (int list_i = 0; list_i < hashtable->table[i].size; list_i++)
+        for (size_t list_i = 0; list_i < hashtable->table[i].size; list_i++)
         {
             log("%s ", node->elem);
             node = node->next;
@@ -208,10 +246,9 @@ void HTableSaveStats(htab_t* hashtable, const char* filename)
 
     fprintf(csv_file, "Hash, Number of words\n");
 
-    for (int i = 0; i < hashtable->size; i++)
+    for (size_t i = 0; i < hashtable->size; i++)
     {
-        log("write line\n");
-        fprintf(csv_file, "%d, %d\n", i, hashtable->table[i].size);
+        fprintf(csv_file, "%ld, %ld\n", i, hashtable->table[i].size);
     }
 
     fclose(csv_file);
@@ -255,7 +292,7 @@ int TextToBuffer(FILE* file, textbuf_t* textbuf)
 
 void FillHTable(htab_t* hashtable, textbuf_t* textbuf)
 {
-    int textbuf_i = 0;
+    size_t textbuf_i = 0;
     char* word = nullptr;
 
     const char** temp_ptr_wbuf = (const char**) calloc (DEFAULT_WORDS_NUM, sizeof(char*));
@@ -279,12 +316,19 @@ void FillHTable(htab_t* hashtable, textbuf_t* textbuf)
         if (word && *word != '\0')  WordToBuf(&words_buf, word);        
     }
 
+    log("realloc size table: %d\n", (words_buf.index / ELEMS_IN_LIST) + 1);
+
     list_t* temp_ptr_table = (list_t*) realloc (hashtable->table, ((words_buf.index / ELEMS_IN_LIST) + 1) * sizeof(list_t));
     Assert(temp_ptr_table == nullptr);
     hashtable->table = temp_ptr_table;
-    hashtable->size = (words_buf.index / ELEMS_IN_LIST) + 1;
+    hashtable->size = (words_buf.index / ELEMS_IN_LIST) + 1;    // upsate table size
 
-    for (int i = 0; i < words_buf.index; i++)
+    for (size_t i = 0; i < hashtable->size; i++)
+    {
+        hashtable->table[i].size = 0;                           // make nulls (as calloc does)
+    }
+
+    for (size_t i = 0; i < words_buf.index; i++)
     {
         Assert(words_buf.buf[i] == nullptr);
         InsertWord(hashtable, words_buf.buf[i]);
@@ -296,22 +340,24 @@ void WordToBuf(wordsbuf_t* words_buf, const char* word)
 {
     if (words_buf->index >= words_buf->size)
     {
+        log("realloc size word buffer: %d\n", 2 * words_buf->size);
         const char** temp_ptr = (const char**) realloc (words_buf->buf, 2 * words_buf->size * sizeof(char*));
         Assert(temp_ptr == nullptr);
         words_buf->buf = temp_ptr;
+        words_buf->size *= 2;
     }
 
     words_buf->buf[words_buf->index] = word;
     words_buf->index++;
 }
 
-int GetFileSize(FILE* file)
+size_t GetFileSize(FILE* file)
 {
     Assert(file == NULL);
     
     fseek(file, 0, SEEK_END);
 
-    int size = ftell(file);
+    size_t size = ftell(file);
 
     fseek(file, 0, SEEK_SET);
 
