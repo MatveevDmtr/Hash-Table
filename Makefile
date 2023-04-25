@@ -19,3 +19,4 @@ clean:
 
 execute:
 	./hash-table
+# valgrind --leak-check=full ./hash-table

@@ -54,7 +54,11 @@ int TextToBuffer(FILE* file, textbuf_t* textbuf);
 FILE* OpenReadFile(const char* filename);
 FILE* OpenWriteFile(const char* filename);
 
+void WordsBufCtor(wordsbuf_t* words_buf);
+void FillWordsBuf(textbuf_t* textbuf, wordsbuf_t* words_buf);
 void WordToBuf(wordsbuf_t* words_buf, const char* word);
+void HTableResize(htab_t* hashtable, size_t new_size);
+
 void HTableSaveStats(htab_t* hashtable, const char* filename);
 void TestHashFunc(textbuf_t* textbuf, size_t (*HashFunc)(const char * word), const char* hashfunc_name);
 
@@ -66,4 +70,6 @@ size_t Hash_SumASCII(const char* word);
 size_t Hash_ROL(const char* word);
 size_t Hash_ROR(const char* word);
 size_t Hash_Rs(const char * word);
+
+void FreeTextBuf(textbuf_t* textbuf);
 //end prototypes

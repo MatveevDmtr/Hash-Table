@@ -30,9 +30,19 @@ As a result, let's compare running time of our program before and after inseting
 
 #### Implemented features
 
-Let's collect some statistics. It's advisable to create a function for saving all list sizes to file "table_stats.csv". Then, using LibreOffice or MS Excel, we should create diagrams with info from this file.
+Let's collect some statistics. It's advisable to create a function for saving all list sizes to csv files with appropriate names. Then, using LibreOffice or MS Excel, we should create diagrams with info from this file.
 
-So, let's describe and analyze each function.
+Some words about size of the hash table. In real conditions hash tables have 1-2 elements in each list to get a better performance. These conditions cause a huge size of the hash table. But in case of testing hash functions 1-2 elements in each list will spoil our diagrams and make them uninformative. That's why we should intensionally decrease hash table's size to make diagrams better.
+
+Also, theory of hashing says, that size of a hash table should be a prime number to get a better distribution. It's obvious that this size depends on amount of words in the text. Let's choose a divisor for number of words in the text:
+$$hashtable_size = \frac{num_words_in_text}{divisor}$$
+These consitions should be satisfied:
+1. Size of the hash table should be a prime number
+2. For a rather good hash function there should be 10-20 words in each list
+   
+I experimentally obtained, that this divisor should have a value _99_.
+
+So, let's start describing and analyzing each hash function.
 
 #### Hash function #1. "Always 1" [Always the first]
 It's a basic hash function that always returns _1_ regardless of the word. Here is its implementation:
@@ -61,6 +71,19 @@ Diagram:
 
 The diagram actually reminds some kind of _normal_ _distribution_. All the words have a hash value not bigger than 128. This range (from 0 to 128) is increadibly small for a good hash function. Though the diagram is far from a flat one, __"First ASCII"__ is already a possible variant for creating a working hash table.
 Actually,  is a simple test for the algorythm, but not a function for real use.
+
+#### Hash function #3. "Strlen"
+This hash function returns length of a word as a hash value. Here is its implementation:
+```
+size_t Hash_Strlen(const char* word)
+{
+    return strlen(word);
+}
+```
+Diagram:
+![strlen](./img/strlen.png)
+
+The diagram actually reminds some kind of _normal_ _distribution_. All the words have a hash value not bigger than 20. This range (from 0 to 20) is increadibly small for a good hash function. Though the diagram is far from a flat one, __"Strlen"__ is already a possible variant for creating a working hash table.
 
 
 ## Автоматическая сборка
