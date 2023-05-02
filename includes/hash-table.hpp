@@ -49,7 +49,7 @@ void HTableDump(htab_t* hashtable);
 
 int ReadFile(const char* filename, textbuf_t* textbuf);
 size_t GetFileSize(FILE* file);
-void FillHTable(htab_t* hashtable, textbuf_t* textbuf);
+void FillHTable(htab_t* hashtable, wordsbuf_t* words_buf);
 int TextToBuffer(FILE* file, textbuf_t* textbuf);
 FILE* OpenReadFile(const char* filename);
 FILE* OpenWriteFile(const char* filename);
@@ -60,7 +60,8 @@ void WordToBuf(wordsbuf_t* words_buf, const char* word);
 void HTableResize(htab_t* hashtable, size_t new_size);
 
 void HTableSaveStats(htab_t* hashtable, const char* filename);
-void TestHashFunc(textbuf_t* textbuf, size_t (*HashFunc)(const char * word), const char* hashfunc_name);
+void TestHashFunc(wordsbuf_t* words_buf, size_t (*HashFunc)(const char * word), const char* hashfunc_name);
+void TestSearching(wordsbuf_t* words_buf, size_t (*HashFunc)(const char * word));
 
 
 size_t Hash_Always1(const char* word);
@@ -72,4 +73,5 @@ size_t Hash_ROR(const char* word);
 size_t Hash_Rs(const char * word);
 
 void FreeTextBuf(textbuf_t* textbuf);
+void FreeWordsBuf(wordsbuf_t* words_buf);
 //end prototypes

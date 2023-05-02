@@ -15,24 +15,52 @@ int main()
 
     ReadFile(READ_FILE_NAME, &textbuf);
 
-    TestHashFunc(&textbuf, Hash_Always1, "hash_always1");
-    TestHashFunc(&textbuf, Hash_FirstASCII, "hash_firstASCII");
-    TestHashFunc(&textbuf, Hash_Strlen, "hash_strlen");
-    TestHashFunc(&textbuf, Hash_SumASCII, "hash_sumASCII");
-    TestHashFunc(&textbuf, Hash_ROL, "hash_rol");
-    TestHashFunc(&textbuf, Hash_ROR, "hash_ror");
-    TestHashFunc(&textbuf, Hash_Rs, "hash_rs");
+    wordsbuf_t words_buf = {};
+    WordsBufCtor(&words_buf);
 
-    FreeTextBuf(&textbuf);    
+    FillWordsBuf(&textbuf, &words_buf);
+
+    // TestHashFunc(&words_buf, Hash_Always1, "hash_always1");
+    // TestHashFunc(&words_buf, Hash_FirstASCII, "hash_firstASCII");
+    // TestHashFunc(&words_buf, Hash_Strlen, "hash_strlen");
+    // TestHashFunc(&words_buf, Hash_SumASCII, "hash_sumASCII");
+    // TestHashFunc(&words_buf, Hash_ROL, "hash_rol");
+    // TestHashFunc(&words_buf, Hash_ROR, "hash_ror");
+    // TestHashFunc(&words_buf, Hash_Rs, "hash_rs");
+
+    TestSearching(&words_buf, Hash_Rs);
+
+    FreeTextBuf(&textbuf);
+    FreeWordsBuf(&words_buf);    
 }
 
-void TestHashFunc(textbuf_t* textbuf, size_t (*HashFunc)(const char * word), const char* hashfunc_name)
+void TestSearching(wordsbuf_t* words_buf, size_t (*HashFunc)(const char * word))
 {
     htab_t hashtable = {};
 
     HTableCtor(&hashtable, 10, HashFunc);
     
-    FillHTable(&hashtable, textbuf);
+    FillHTable(&hashtable, words_buf);
+
+    for (int num_measures = 0; num_measures < 7000; num_measures++)
+    {
+        // printf("measures: %d\n", num_measures);
+        for (int i = 0; i < words_buf->index; i++)
+        {
+            SearchWord(&hashtable, words_buf->buf[i]);
+        }
+    }
+
+    HTableDtor(&hashtable);
+}
+
+void TestHashFunc(wordsbuf_t* words_buf, size_t (*HashFunc)(const char * word), const char* hashfunc_name)
+{
+    htab_t hashtable = {};
+
+    HTableCtor(&hashtable, 10, HashFunc);
+    
+    FillHTable(&hashtable, words_buf);
 
     HTableSaveStats(&hashtable, hashfunc_name);
     
@@ -69,11 +97,11 @@ int SearchWord(htab_t* hashtable, const char* word)
 {
     size_t index = hashtable->HashFunc(word) % hashtable->size;
 
-    if (index >= hashtable->size)
-    {
-        print_log(FRAMED, "SearchError: hash value is too large to be in table");
-        return 0;
-    }
+    // if (index >= hashtable->size)
+    // {
+    //     print_log(FRAMED, "SearchError: hash value is too large to be in table");
+    //     return 0;
+    // }
 
     int res = SearchInList(&(hashtable->table[index]), word);
     return res;
@@ -87,13 +115,13 @@ int SearchInList(list_t* list, const char* word)
     {
         if (!strcmp(node->elem, word))
         {
-            log("Word \"%s\" found!\n", word);
+            // log("Word \"%s\" found!\n", word);
             return list_i;
         }
         node = node->next;
     }
 
-    log("Word \"%s\" not found!\n", word);    
+    // log("Word \"%s\" not found!\n", word);    
     return -1;
 }
 
@@ -174,7 +202,6 @@ size_t Hash_Rs(const char * word)
     }
 
     return value;
-
 }
 
 void HTableCtor(htab_t* hashtable, size_t size, size_t (*HashFunc)(const char * word))
@@ -204,7 +231,6 @@ void HTableDtor(htab_t* hashtable)
             free(node);
             node = next_node;
         }
-        log("\n");
     }
 
     free(hashtable->table);
@@ -288,28 +314,22 @@ int TextToBuffer(FILE* file, textbuf_t* textbuf)
     return 1;
 }
 
-void FillHTable(htab_t* hashtable, textbuf_t* textbuf)
+void FillHTable(htab_t* hashtable, wordsbuf_t* words_buf)
 {
-    wordsbuf_t words_buf = {};
-    WordsBufCtor(&words_buf);
+    log("realloc size table: %d\n", (words_buf->index / ELEMS_IN_LIST) + 1);
 
-    FillWordsBuf(textbuf, &words_buf);
-
-    log("realloc size table: %d\n", (words_buf.index / ELEMS_IN_LIST) + 1);
-
-    HTableResize(hashtable, (words_buf.index / ELEMS_IN_LIST) + 1);
+    HTableResize(hashtable, (words_buf->index / ELEMS_IN_LIST) + 1);
 
     for (size_t i = 0; i < hashtable->size; i++)
     {
         hashtable->table[i].size = 0;                           // make nulls (as calloc does)
     }
 
-    for (size_t i = 0; i < words_buf.index; i++)
+    for (size_t i = 0; i < words_buf->index; i++)
     {
-        Assert(words_buf.buf[i] == nullptr);
-        InsertWord(hashtable, words_buf.buf[i]);
+        Assert(words_buf->buf[i] == nullptr);
+        InsertWord(hashtable, words_buf->buf[i]);
     }
-    free(words_buf.buf);
 }
 
 void HTableResize(htab_t* hashtable, size_t new_size)
@@ -406,4 +426,12 @@ void FreeTextBuf(textbuf_t* textbuf)
     Assert(textbuf->buf == nullptr);
 
     free(textbuf->buf);
+}
+
+void FreeWordsBuf(wordsbuf_t* words_buf)
+{
+    Assert(words_buf      == nullptr);
+    Assert(words_buf->buf == nullptr);
+
+    free(words_buf->buf);
 }
