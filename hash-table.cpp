@@ -2,12 +2,21 @@
 
 //#define HASHFUNC Hash_6
 
+//#define OPT_CMP
+//#define OPT_RS
+//#define OPT_HASHROL
+#define OPT_ROL
+
+extern "C" size_t Mul378551(size_t num);
+extern "C" size_t asm_HashROL(const char* word);
+
 const char* READ_FILE_NAME = "Fahrenheit_451.txt";
 const char* CSV_FILE_NAME = "result/table_stats.csv";
 const char* RES_DIR = "result/statistics/";
 const char* RES_EXT = ".csv";
 const int DEFAULT_WORDS_NUM = 100;
 const int ELEMS_IN_LIST = 99;
+const int NUM_MEASURES = 100;
 
 int main()
 {
@@ -18,7 +27,12 @@ int main()
     wordsbuf_t words_buf = {};
     WordsBufCtor(&words_buf);
 
+    avx_wordsbuf_t avx_wordsbuf = {};
+
     FillWordsBuf(&textbuf, &words_buf);
+
+    FillAVXWordsBuf(&avx_wordsbuf, &words_buf);
+    log("avx words buf filled\n");
 
     // TestHashFunc(&words_buf, Hash_Always1, "hash_always1");
     // TestHashFunc(&words_buf, Hash_FirstASCII, "hash_firstASCII");
@@ -28,48 +42,64 @@ int main()
     // TestHashFunc(&words_buf, Hash_ROR, "hash_ror");
     // TestHashFunc(&words_buf, Hash_Rs, "hash_rs");
 
-    TestSearching(&words_buf, Hash_Rs);
+#ifdef OPT_HASHROL
+    TestSearching(&words_buf, &avx_wordsbuf, asm_HashROL);
+#else
+    TestSearching(&words_buf, &avx_wordsbuf, Hash_ROL);
+#endif
 
     FreeTextBuf(&textbuf);
     FreeWordsBuf(&words_buf);    
 }
 
-void TestSearching(wordsbuf_t* words_buf, size_t (*HashFunc)(const char * word))
+void TestSearching(wordsbuf_t* words_buf, avx_wordsbuf_t* avx_wordsbuf, size_t (*HashFunc)(const char * word))
 {
     htab_t hashtable = {};
 
     HTableCtor(&hashtable, 10, HashFunc);
     
-    FillHTable(&hashtable, words_buf);
+    FillHTable(&hashtable, words_buf, avx_wordsbuf);
 
-    for (int num_measures = 0; num_measures < 7000; num_measures++)
+
+    log("start searching words\n");
+
+    printf("number of words: %ld\n", words_buf->size);
+
+    clock_t time_start = clock();
+
+    for (int num_measures = 0; num_measures < NUM_MEASURES; num_measures++) 
     {
         // printf("measures: %d\n", num_measures);
-        for (int i = 0; i < words_buf->index; i++)
+        for (int i = 0; i < words_buf->size; i++)
         {
-            SearchWord(&hashtable, words_buf->buf[i]);
+            SearchWord(&hashtable, words_buf->buf[i], avx_wordsbuf->buf + i);
         }
     }
+
+    clock_t time_end = clock();
+
+    printf("Elapsed time: %f ms\n", (double)(time_end - time_start) / CLOCKS_PER_SEC / (NUM_MEASURES / 1000));
 
     HTableDtor(&hashtable);
 }
 
-void TestHashFunc(wordsbuf_t* words_buf, size_t (*HashFunc)(const char * word), const char* hashfunc_name)
+void TestHashFunc(wordsbuf_t* words_buf, avx_wordsbuf_t* avx_wordsbuf, size_t (*HashFunc)(const char * word), const char* hashfunc_name)
 {
     htab_t hashtable = {};
 
     HTableCtor(&hashtable, 10, HashFunc);
     
-    FillHTable(&hashtable, words_buf);
+    FillHTable(&hashtable, words_buf, avx_wordsbuf);
 
     HTableSaveStats(&hashtable, hashfunc_name);
     
     HTableDtor(&hashtable);
 }
 
-int InsertWord(htab_t* hashtable, const char* word)
+int InsertWord(htab_t* hashtable, const char* word, __m256i* avx_word)
 {
     Assert(hashtable == nullptr);
+    Assert(avx_word == nullptr);
 
     size_t index = hashtable->HashFunc(word) % hashtable->size;
 
@@ -86,14 +116,14 @@ int InsertWord(htab_t* hashtable, const char* word)
     }
 
     node_t* next = hashtable->table[index].head;
-    hashtable->table[index].head = NewNode(word);
+    hashtable->table[index].head = NewNode(word, avx_word);
     hashtable->table[index].head->next = next;
     hashtable->table[index].size++;
 
     return 0;
 }
 
-int SearchWord(htab_t* hashtable, const char* word)
+int SearchWord(htab_t* hashtable, const char* word, __m256i* avx_word)
 {
     size_t index = hashtable->HashFunc(word) % hashtable->size;
 
@@ -103,34 +133,45 @@ int SearchWord(htab_t* hashtable, const char* word)
     //     return 0;
     // }
 
-    int res = SearchInList(&(hashtable->table[index]), word);
+    int res = SearchInList(&(hashtable->table[index]), word, avx_word);
     return res;
 }
 
-int SearchInList(list_t* list, const char* word)
+int SearchInList(list_t* list, const char* word, __m256i* avx_word)
 {
     node_t* node = list->head;
 
     for (size_t list_i = 0; list_i < list->size; list_i++)
     {
-        if (!strcmp(node->elem, word))
+#ifdef OPT_CMP
+        if (!avx_strcmp(node->avx_elem, avx_word))
         {
-            // log("Word \"%s\" found!\n", word);
+            //log("Word \"%s\" found!\n", word);
             return list_i;
         }
+#else
+        if (!strcmp(node->elem, word))
+        {
+            //log("Word \"%s\" found!\n", word);
+            return list_i;
+        }
+
+#endif
+        
         node = node->next;
     }
 
-    // log("Word \"%s\" not found!\n", word);    
+    //log("Word \"%s\" not found!\n", word);    
     return -1;
 }
 
-node_t* NewNode(const char* word)
+node_t* NewNode(const char* word, __m256i* avx_word)
 {
     node_t* node = (node_t*) calloc (1, sizeof(node_t));
     Assert(node == nullptr);
     
     node->elem = word;
+    node->avx_elem = avx_word;
     
     return node;
 }
@@ -164,11 +205,29 @@ size_t Hash_SumASCII(const char* word)
 
 size_t Hash_ROL(const char* word)
 {
+#ifdef OPT_ROL
+    size_t rol_value = 0;
+#endif
+
     size_t value = 0;
     int i = 0;
     while (word[i] != '\0')
     {
-        value = ((value << 1) | (value >> (sizeof (int) - 1))) ^ word[i];
+#ifdef OPT_ROL
+    __asm__ (
+        ".intel_syntax noprefix\n\t"
+        "mov eax, %1\n\t"
+        "rol eax, 1\n\t"
+        "mov %0, eax\n\t"
+        ".att_syntax\n\t" 
+        : "=b" (rol_value)
+        : "c" (value)
+        : "%eax"
+    );
+    value = rol_value ^ word[i];
+#else
+        value = (Rol(value, 1)) ^ word[i];
+#endif
         i++;
     }
     return value;
@@ -186,7 +245,7 @@ size_t Hash_ROR(const char* word)
     return value;
 }
 
-size_t Hash_Rs(const char * word)
+size_t Hash_Rs(const char* word)
 {
 
     static const unsigned int b = 378551;
@@ -197,11 +256,23 @@ size_t Hash_Rs(const char * word)
     while (word[i] != '\0')
     {
         value = value * a + (unsigned char) word[i];
+
+#ifdef OPT_RS
+        //log("%d", a * b);
+        a = Mul378551(a);
+        //log(" %d\n", a);
+#else
         a *= b;
+#endif
         i++;
     }
 
     return value;
+}
+
+size_t Rol(size_t value, int shift)
+{
+    return (value << shift) | (value >> (sizeof (int) - shift));
 }
 
 void HTableCtor(htab_t* hashtable, size_t size, size_t (*HashFunc)(const char * word))
@@ -314,21 +385,21 @@ int TextToBuffer(FILE* file, textbuf_t* textbuf)
     return 1;
 }
 
-void FillHTable(htab_t* hashtable, wordsbuf_t* words_buf)
+void FillHTable(htab_t* hashtable, wordsbuf_t* words_buf, avx_wordsbuf_t* avx_wordsbuf)
 {
-    log("realloc size table: %d\n", (words_buf->index / ELEMS_IN_LIST) + 1);
+    log("realloc size table: %d\n", (words_buf->size / ELEMS_IN_LIST) + 1);
 
-    HTableResize(hashtable, (words_buf->index / ELEMS_IN_LIST) + 1);
+    HTableResize(hashtable, (words_buf->size / ELEMS_IN_LIST) + 1);
 
     for (size_t i = 0; i < hashtable->size; i++)
     {
         hashtable->table[i].size = 0;                           // make nulls (as calloc does)
     }
 
-    for (size_t i = 0; i < words_buf->index; i++)
+    for (size_t i = 0; i < words_buf->size; i++)
     {
         Assert(words_buf->buf[i] == nullptr);
-        InsertWord(hashtable, words_buf->buf[i]);
+        InsertWord(hashtable, words_buf->buf[i], avx_wordsbuf->buf + i);
     }
 }
 
@@ -360,6 +431,14 @@ void FillWordsBuf(textbuf_t* textbuf, wordsbuf_t* words_buf)
         Assert(word == nullptr);
         if (word && *word != '\0')  WordToBuf(words_buf, word);        
     }
+
+    if (words_buf->size < words_buf->capacity - 1)                                                              //decrease buf size to free unused memory
+    {
+        const char** temp_ptr = (const char**) realloc (words_buf->buf, words_buf->size * sizeof(char*));
+        Assert(temp_ptr == nullptr);
+        words_buf->buf = temp_ptr;
+        words_buf->capacity = words_buf->size;
+    }
 }
 
 void WordsBufCtor(wordsbuf_t* words_buf)
@@ -368,23 +447,23 @@ void WordsBufCtor(wordsbuf_t* words_buf)
     Assert(temp_ptr_wbuf == nullptr);
 
     words_buf->buf   = temp_ptr_wbuf;
-    words_buf->size  = DEFAULT_WORDS_NUM,
-    words_buf->index = 0;
+    words_buf->capacity  = DEFAULT_WORDS_NUM,
+    words_buf->size = 0;
 }
 
 void WordToBuf(wordsbuf_t* words_buf, const char* word)
 {
-    if (words_buf->index >= words_buf->size)
+    if (words_buf->size >= words_buf->capacity)
     {
-        log("realloc size word buffer: %d\n", 2 * words_buf->size);
-        const char** temp_ptr = (const char**) realloc (words_buf->buf, 2 * words_buf->size * sizeof(char*));
+        log("realloc size word buffer: %d\n", 2 * words_buf->capacity);
+        const char** temp_ptr = (const char**) realloc (words_buf->buf, 2 * words_buf->capacity * sizeof(char*));
         Assert(temp_ptr == nullptr);
         words_buf->buf = temp_ptr;
-        words_buf->size *= 2;
+        words_buf->capacity *= 2;
     }
 
-    words_buf->buf[words_buf->index] = word;
-    words_buf->index++;
+    words_buf->buf[words_buf->size] = word;
+    words_buf->size++;
 }
 
 size_t GetFileSize(FILE* file)
@@ -435,3 +514,38 @@ void FreeWordsBuf(wordsbuf_t* words_buf)
 
     free(words_buf->buf);
 }
+
+void FillAVXWordsBuf(avx_wordsbuf_t* avx_wordsbuf, wordsbuf_t* words_buf)
+{
+    __m256i* temp_ptr = (__m256i*) aligned_alloc(32, words_buf->size * sizeof(__m256i));
+    Assert(temp_ptr == nullptr);
+
+
+    avx_wordsbuf->buf = temp_ptr;
+    __m256i* avx_wb_pointer = avx_wordsbuf->buf;                                                 // points the first free elem of buffer
+
+    for (size_t i = 0; i < words_buf->size; i++)
+    {
+        strcpy((char*) avx_wb_pointer, words_buf->buf[i]);        
+        avx_wb_pointer++;
+    }
+
+    log("finish filling avx buf\n");
+
+    avx_wordsbuf->buf      = temp_ptr;
+    avx_wordsbuf->size     = words_buf->size;
+    avx_wordsbuf->capacity = words_buf->capacity;
+
+}
+
+#ifdef OPT_CMP
+
+int avx_strcmp(__m256i* word1, __m256i* word2)
+{
+    __m256i cmp_mask = _mm256_cmpeq_epi8(*word1, *word2);
+
+    if (_mm256_movemask_epi8(cmp_mask) == -1)    {return 0;}
+
+    return -1;
+}
+#endif // OPT_CMP

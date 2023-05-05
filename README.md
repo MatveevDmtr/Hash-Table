@@ -19,12 +19,14 @@ Let's create diagrams that show list sizes for each hash value. Ideal hash funct
 
 ##### Part 2
 This part of the project involves creating different manual optimizations. Here is the list of optimizations we are going to use:
-1. Assembly insertions. We are going to write a function in NASM and call it from C++. Documentation for NASM can be found here https://www.opennet.ru/docs/RUS/nasm/.
-2. AVX (Advanced Vector Extensions, extension of Intel & AMD command system). To learn more about AVX follow https://www.laruence.com/sse/.
-3. _______Bla Bla Bla_______
+1. Assembly insertions. We are going to write a function in NASM and call it from C++. Documentation for NASM can be found [here](https://www.opennet.ru/docs/RUS/nasm/).
+2. AVX (Advanced Vector Extensions, extension of Intel & AMD command system). To learn more about AVX follow [Intel Intrinsics Mirror](https://www.laruence.com/sse/).
+3. Choosing a better hash function that has a hardware support and is faster than others.
 
-A block of code to optimize will be chosen using FlameGraph - an instrument that allows to find the most slow and "heavy" functions in our program.
+A block of code to optimize will be chosen using tools from valgrind package. More details can be found [here] __hyperlink__
 As a result, let's compare running time of our program before and after inserting optimizations.
+
+## 
 
 ## Part 1. Testing hash functions
 
@@ -38,20 +40,26 @@ Also, theory of hashing says, that size of a hash table should be a prime number
 $$hashtable \text{ } size = \frac{number \text{ } of \text{ } words \text{ } in \text{ } the \text{ }text}{divisor}$$
 These conditions should be satisfied:
 1. Size of the hash table should be a prime number;
-2. For a rather good hash function there should be 10-20 words in each list.
+2. For a rather good hash function there should be 5-20 words in each list.
    
 I experimentally obtained, that this divisor should have a value _99_ for the chosen text.
 
 So, let's start describing and analyzing each hash function.
 
 #### Hash function #1. "Always 1" [Always the first]
-It's a basic hash function that always returns _1_ regardless of the word. Here is its implementation:
-```
+It's a basic hash function that always returns _1_ regardless of the word. 
+
+<details>
+<summary><b>"Always 1" hash implementation</b></summary>
+
+~~~C++
 size_t Hash_Always1(const char* word)
 {
     return 1;
 }
-```
+~~~
+</details>
+
 Diagram:
 ![Always1](./img/hash_always1.png)
 
@@ -59,13 +67,20 @@ As you can see, all the words have been stored to a list with index _[1]_. This 
 Actually, __"Always 1"__ is a simple test for the algorythm of hashing, but not a function for real use.
 
 #### Hash function #2. "First ASCII"
-This hash function returns ASCII code of the first letter of a word. Here is its implementation:
-```
+This hash function returns ASCII code of the first letter of a word. 
+
+<details>
+<summary><b>"First ASCII" hash implementation</b></summary>
+
+~~~C++
 size_t Hash_FirstASCII(const char* word)
 {
     return word[0];
 }
-```
+~~~
+</details>
+
+
 Diagram:
 ![first_ascii](./img/hash_firstASCII.png)
 
@@ -74,12 +89,19 @@ Hash tables based on __"First ASCII"__ function are usable, but extremely ineffi
 
 #### Hash function #3. "Strlen"
 This hash function returns length of a word as a hash value. Here is its implementation:
-```
+
+<details>
+<summary><b>"Strlen" hash implementation</b></summary>
+
+~~~C++
 size_t Hash_Strlen(const char* word)
 {
     return strlen(word);
 }
-```
+~~~
+</details>
+
+
 Diagram:
 ![strlen](./img/hash_strlen.png)
 
@@ -87,7 +109,10 @@ The diagram actually reminds some kind of a _normal_ _distribution_. All the wor
 
 #### Hash function #4. "Sum ASCII codes"
 This hash function returns sum of ASCII codes of all symbols in a word. Here is its implementation:
-```
+<details>
+<summary><b>"Sum ASCII codes" hash implementation</b></summary>
+
+~~~C++
 size_t Hash_SumASCII(const char* word)
 {
     size_t sum = 0;
@@ -99,7 +124,9 @@ size_t Hash_SumASCII(const char* word)
     }
     return sum;
 }
-```
+~~~
+</details>
+
 Diagram:
 ![sumASCII](./img/hash_sumASCII.png) 
 
@@ -112,7 +139,11 @@ $$H_{i+1} = rol(H_i) \wedge word[i]$$
 As a start hash value we take $H_0 = 0$.
 $rol$ is an assembly function that implements bit rotation to the left.
 It works like this:
-```
+
+<details>
+<summary><b>"ROL" hash implementation</b></summary>
+
+~~~C++
 size_t Hash_ROL(const char* word)
 {
     size_t value = 0;
@@ -124,7 +155,9 @@ size_t Hash_ROL(const char* word)
     }
     return value;
 }
-```
+~~~
+</details>
+
 Diagram:
 ![rol](./img/hash_rol.png)
 
@@ -136,7 +169,10 @@ $$H_{i+1} = ror(H_i) \wedge word[i]$$
 As a start hash value we take $H_0 = 0$.
 $ror$ is an assembly function that implements bit rotation to the right.
 It works like this:
-```
+<details>
+<summary><b>"ROR" hash implementation</b></summary>
+
+~~~C++
 size_t Hash_ROR(const char* word)
 {
     size_t value = 0;
@@ -148,7 +184,9 @@ size_t Hash_ROR(const char* word)
     }
     return value;
 }
-```
+~~~
+</details>
+
 Diagram:
 ![ror](./img/hash_ror.png)
 
@@ -156,8 +194,10 @@ This function uses all hash value range too. Though the diagram has very high co
 
 #### Hash function #7. "RS"
 I've chosen this hash function, because it has rather good characteristics and a very simple implementation. 
-It works like this:
-```
+<details>
+<summary><b>"RS" hash implementation</b></summary>
+
+~~~C++
 size_t Hash_Rs(const char* word)
 {
 
@@ -175,43 +215,57 @@ size_t Hash_Rs(const char* word)
 
     return value;
 }
-```
+~~~
+</details>
+
 Diagram:
 ![rs](./img/hash_ror.png)
 
 This function uses all hash value range too. Though the diagram has very high columns, most of them are outstanding. Generally, the values are closer to the average one, than in functions described before.
 
-## Автоматическая сборка
-Чтобы запустить программу, необходимо использовать Makefile, прилагающийся к проекту. Для этого после клонирования этого репозитория на ваш компьютер  необходимо в теминале из папки репозитория набрать "make". В самом Makefile в переменной CFLAGS необходимо указать нужный тип оптимизации (см. ниже). Используя флаг условной компиляции -DDRAW  (см. Makefile) можно включать и выключать отрисовку множества, а с помощью флага -DMEASURING можно входить и выходить из режима измерений.
+## Auto build
+In order to run the program you should use Makefile. After cloning this repository to your computer type "make" in the terminal _in repo's directory_. In the Makefile's variable __CFLAGS__ you can turn on and off logging using _-DLOGGING_ flag. With the help of variable __OPTFLAG__ you can choose compiler optimization (-O0, -O1, -O2, -O3 or -Ofast) and manual optimization (see _Part 2_ __hyperlink__) using _-DOPT_CMP_, _-DOPT_RS_ and _-DOPT_ROL_ flags.
 
-## Сборка вручную
-Для компиляции программы необходимо прописать в терминале следующую команду:
+## Manual build
+Compilation in terminal:
 
-```g++ -mavx2 -c -O3 -DDRAW mandelbrot.cpp -o mandelbrot.o```
+```g++ -c -no-pie -mavx2 -msse2 -fno-omit-frame-pointer -DLOGGING -O2 hash-table.cpp```
+```g++ -c -no-pie -mavx2 -msse2 -fno-omit-frame-pointer -DLOGGING -O2 includes/logging/logging.cpp```
 
-Сборка проекта:
+Copilation of nasm function __Hash ROL__ (if neccessary):
 
-```g++ mandelbrot.o -o sfml-app -lsfml-graphics -lsfml-window -lsfml-system```
+```nasm -f elf64 -l rol_asm.lst hash_rol.asm```
 
-Чтобы запустить программу, пропишите в терминале:
+Linking:
 
-```./sfml-app```
+```g++ hash-table.o logging.o hash_rol.o -o hash-table```
+
+In case of using C++ implementation of __Hash ROL__ (instead of assembly one) delete _hash_rol.o_ from this line.
+
+Finally, execute the program:
+
+```./hash-table```
 
 ## Part 2. Optimizations
 
+### Description
+
 #### Tools for analysis
-There is a great amount of various tools and applications that can analyze your program at runtime. I've chosen callgrind (an utility that is served in a valgrind package) for my research. It emulates each executable program instruction. Callgrind uses internal metrics about the «cost» of each instruction to give us the conclusion we need.
+There is a great amount of various tools and applications that can analyze your program at runtime. I've chosen callgrind profiler (an utility that is provided in a valgrind package) for my research. It emulates each executable program instruction. Callgrind uses internal metrics about the «cost» of each instruction to give us the conclusion we need.
 To install valgrind (that contains callgrind), type:
 
 ```sudo apt install valgrind```
 
-We also need a tool that will help us to read and analyze Callgrind's reports. Kcachegrind is maybe one of the most useful programs for this case.
+We also need a tool that will help us to read and analyze callgrind's reports. Kcachegrind is maybe one of the most useful programs for this case.
 For more information about valgrind see its [official site](https://valgrind.org/), [quick start guide](https://valgrind.org/docs/manual/quick-start.html) and [user manual](https://valgrind.org/docs/manual/manual.html).
 
 #### Word search implemetation
 Probably the most important function in a hash table is a function that searches words. In my program it's rather simply implemented:
 
-```
+<details>
+<summary><b>SearchWord implementation</b></summary>
+
+~~~C++
 int SearchWord(htab_t* hashtable, const char* word)
 {
     size_t index = hashtable->HashFunc(word) % hashtable->size;
@@ -219,14 +273,19 @@ int SearchWord(htab_t* hashtable, const char* word)
     int res = SearchInList(&(hashtable->table[index]), word);
     return res;
 }
-```
+~~~
+</details>
+
 A few words about searching in a list. In real hash tables lists don't usually contain more than 1-2 words, so such search doesn't take much time. That's why the most common idea is to organize a linear search. It can be done by "sign by sign comparison" of each word with the search word. 
 
 But in our test case there can be more than 40 words in a list. It really depends on the hash function that we are going to use. So linear search can be rather slow in our conditions and maybe we should optimize it.
 
 Here is the implementation of searching a word in a list:
 
-```
+<details>
+<summary><b>SearchList implementation</b></summary>
+
+~~~C++
 int SearchInList(list_t* list, const char* word)
 {
     node_t* node = list->head;
@@ -244,7 +303,157 @@ int SearchInList(list_t* list, const char* word)
     // Word not found    
     return -1;
 }
-```
+~~~
+</details>
+
+#### Choice of hash function
+
+According to the diagrams and statistics from part 1, we can see that the best 3 hash functions are: Hash RS, Hash ROL and Hash ROR. 
+Hash RS is rather slow and hard to optimize. 
+Hash ROL has rather good diagram and there are plenty of ways to make it faster. That's why I've chosen __Hash ROL__ for my future test.
+
+Now it's time to refine the program.
+
+### Version 0. No optimizations (_baseline_)
+#### Make search great again
+Filling hash table with the words from the text is rather slow, but it's usually done only once, right after creating a hash table. It's far more important to optimize the function that searches words, because it might be called many times.
+So, let's call it for nearly 7000 times (for all words in the text in each time) to increase the influence of search functions on the program's performance.
+
+There are 47410 words in "Fahrengeit 451" (text that is loaded into the hash table), so we are going to call __SearchWord__ function nearly $n = 47410 \cdot 7000 = 331 \text{ } 870 \text{ } 000$ times.
+
+
+#### General analysis of profiling data
+
+Let's have a look at a callgrind report.
+
+![callgrind_v0](./img/callgrind_v0.png)
+
+It's easy to see, that except __main__ and __TestSearching__ (general controling functions that can't be optimized) the most "heavy" functions are: __SearchWord__ and __Hash ROL__. 
+__SearchWord__ controls the whole search and doesn't really "eat" computer resources itself. It is shown in the second column, where we can see the time, which was spent in each function, excluding its children. 2.18 (SearchWord) is relatively small in comparison with 46.48 (Hash ROL). So, SearchWord is too simple to be optimized.   
+
+Next function in callgrind's list is __Hash ROL__. It seems to be not efficent enough. Let's try to make it faster.
+
+### Version 1. Assembly insertion of ROL
+##### Idea
+In C++ there is no special function for rotating numbers, so ROL is implemented using 2 bit shifts:
+
+<details>
+<summary><b>Rol C++ implementation</b></summary>
+
+~~~C++
+size_t Rol(size_t value, int shift)
+{
+    return (value << shift) | (value >> (sizeof (int) - shift));
+}
+~~~
+</details>
+
+Luckily, __rol__ function is implemented in assembly and has a hardware support. Let's make an assembly insertion.
+
+##### Implementation and performance
+
+Assembly insertions in C++ are written on assembly GAS. MSU has prepared a very useful [guide](http://asmcourse.cs.msu.ru/wp-content/uploads/2013/04/gcc-inline-asm.pdf) about writing assebly insertions.
+<details>
+<summary><b>Rol assembly insertion</b></summary>
+
+~~~nasm
+section .text
+global asm_HashROL
+
+asm_HashROL:
+    push rcx 
+    push rdx
+
+    xor     eax, eax                ; start hash value = 0
+    xor     ecx, ecx                ; symbol counter
+.loop:
+    mov     dl, byte [rdi + rcx]    ; dl = current symbol
+
+    cmp     dl, 0                   ; reached end of line?
+    je      .finish_hashing         ; if reached, finish hashing
+    
+    rol     eax, 1                  ; rotate left (shift = 1), 11001101 -> 10011011
+    xor     al, dl                  ; xor last hash byte with current symbol
+
+    inc     ecx                     ; increase counter
+    jmp     .loop                   ; continue
+
+.finish_hashing:
+    pop rdx 
+    pop rcx
+    ret
+~~~
+  
+</details>
+
+You can see the effect of this optimization:
+
+| Optimization | Elapsed time (mcs per measure)  | Absolute speed up |
+| :----------: | :---------------: | :------------------: |
+| Baseline [v.0] |      499        |     1                |
+| asm ins. rol [v.1]|      523          |   1.32               |
+
+_One measure_ means searching all words from the text. Each word is searched 1 time. There are usually nearly 7000 _measures_.
+
+New callgrind report looks like that:
+![callgrind_v2](./img/callgrind_rolhash.png)
+
+As we can see, inlining __rol__ made our hash function faster (from 46.48 to __number__ in the second column).
+
+### Version 2. Assembly optimization of Hash ROL
+##### Idea
+Let's go further and  rewrite whole __Hash ROL__ function in assembly and call this it from C++.
+
+##### Implementation and performance
+
+The function is written on __NASM 64__.
+<details>
+<summary><b>Hash ROL assembly implementation</b></summary>
+
+~~~nasm
+section .text
+global asm_HashROL
+
+asm_HashROL:
+    push rcx 
+    push rdx
+
+    xor     eax, eax                ; start hash value = 0
+    xor     ecx, ecx                ; symbol counter
+.loop:
+    mov     dl, byte [rdi + rcx]    ; dl = current symbol
+
+    cmp     dl, 0                   ; reached end of line?
+    je      .finish_hashing         ; if reached, finish hashing
+    
+    rol     eax, 1                  ; rotate left (shift = 1), 11001101 -> 10011011
+    xor     al, dl                  ; xor last hash byte with current symbol
+
+    inc     ecx                     ; increase counter
+    jmp     .loop                   ; continue
+
+.finish_hashing:
+    pop rdx 
+    pop rcx
+    ret
+~~~
+  
+</details>
+
+You can see the effect of this optimization:
+
+| Optimization | Elapsed time (ms per measure)  | Absolute speed up (from baseline) |  Relative speed up (from prev. version) |
+| :----------: | :---------------: | :------------------: |  :------------------: |
+| Baseline [v.0] |      499        |     1                |     1                |
+| asm ins. rol [v.1] |      499        |     1                |     1                |
+| asm rolhash [v.2]|      523          |   1.32               |     1                |
+
+_One measure_ means searching all words from the text. Each word is searched 1 time. There are usually nearly 7000 _measures_.
+
+New callgrind report:
+![callgrind_v2](./img/callgrind_rolhash.png)
+
+The next function to optimize in callgrind's list (except controling function SearchInList) is __strcmp__. Let's try to refine it.
 
 ## Как достичь максимальной скорости вычислений? 
 

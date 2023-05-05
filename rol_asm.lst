@@ -1,0 +1,25 @@
+     1                                  section .text
+     2                                  global asm_HashROL
+     3                                  
+     4                                  asm_HashROL:
+     5 00000000 51                          push rcx 
+     6 00000001 52                          push rdx
+     7                                  
+     8 00000002 31C0                        xor     eax, eax                ; start hash value = 0
+     9 00000004 31C9                        xor     ecx, ecx                ; symbol counter
+    10                                  .loop:
+    11 00000006 8A140F                      mov     dl, byte [rdi + rcx]    ; dl = current symbol
+    12                                  
+    13 00000009 80FA00                      cmp     dl, 0                   ; reached end of line?
+    14 0000000C 7408                        je      .finish_hashing         ; if reached, finish hashing
+    15                                      
+    16 0000000E D1C0                        rol     eax, 1                  ; rotate left (shift = 1), 11001101 -> 10011011
+    17 00000010 30D0                        xor     al, dl                  ; xor last hash byte with current symbol
+    18                                  
+    19 00000012 FFC1                        inc     ecx                     ; increase counter
+    20 00000014 EBF0                        jmp     .loop                   ; continue
+    21                                  
+    22                                  .finish_hashing:
+    23 00000016 5A                          pop rdx 
+    24 00000017 59                          pop rcx
+    25 00000018 C3                          ret  
