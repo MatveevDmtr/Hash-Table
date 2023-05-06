@@ -1,7 +1,7 @@
 # Переменная CC указывает компилятор, используемый для сборки
 CC=g++
 #В переменной CFLAGS лежат флаги, которые передаются компилятору
-CFLAGS=-c -g -no-pie -mavx2 -msse2 -fno-omit-frame-pointer
+CFLAGS=-c -g -no-pie -mavx2 -msse2 -fno-omit-frame-pointer -std=c++14
 OPTFLAG=-O0
 
 all: hash-table execute clear
@@ -16,7 +16,7 @@ logging.o: includes/logging/logging.cpp
 	$(CC) $(CFLAGS) $(OPTFLAG) includes/logging/logging.cpp
 
 assembly: hash_rol.asm
-	nasm -f elf64 -l rol_asm.lst hash_rol.asm
+	nasm -f elf64 hash_rol.asm
 
 clear:
 	rm *.o

@@ -5,12 +5,12 @@
 //#define OPT_CMP
 //#define OPT_RS
 //#define OPT_HASHROL
-#define OPT_ROL
+//#define OPT_ROL
 
 extern "C" size_t Mul378551(size_t num);
 extern "C" size_t asm_HashROL(const char* word);
 
-const char* READ_FILE_NAME = "Fahrenheit_451.txt";
+const char* READ_FILE_NAME = "texts/Fahrenheit_451.txt";
 const char* CSV_FILE_NAME = "result/table_stats.csv";
 const char* RES_DIR = "result/statistics/";
 const char* RES_EXT = ".csv";
@@ -78,7 +78,7 @@ void TestSearching(wordsbuf_t* words_buf, avx_wordsbuf_t* avx_wordsbuf, size_t (
 
     clock_t time_end = clock();
 
-    printf("Elapsed time: %f ms\n", (double)(time_end - time_start) / CLOCKS_PER_SEC / (NUM_MEASURES / 1000));
+    printf("Elapsed time: %f ms\n", (double)(time_end - time_start) / CLOCKS_PER_SEC * 1000 / NUM_MEASURES);
 
     HTableDtor(&hashtable);
 }
@@ -214,17 +214,18 @@ size_t Hash_ROL(const char* word)
     while (word[i] != '\0')
     {
 #ifdef OPT_ROL
-    __asm__ (
+    asm (
         ".intel_syntax noprefix\n\t"
-        "mov eax, %1\n\t"
-        "rol eax, 1\n\t"
-        "mov %0, eax\n\t"
-        ".att_syntax\n\t" 
-        : "=b" (rol_value)
-        : "c" (value)
-        : "%eax"
+        "mov rax, %1\n\t"
+        "rol rax, 1\n\t"
+        "mov %0, rax\n\t"
+        ".att_syntax prefix\n\t" 
+        : "=r" (rol_value)
+        : "r" (value)
+        : "%rax"
     );
     value = rol_value ^ word[i];
+    log("counted asm hash rol value\n");
 #else
         value = (Rol(value, 1)) ^ word[i];
 #endif
