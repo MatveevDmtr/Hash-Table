@@ -16,7 +16,7 @@ const char* RES_DIR = "result/statistics/";
 const char* RES_EXT = ".csv";
 const int DEFAULT_WORDS_NUM = 100;
 const int ELEMS_IN_LIST = 99;
-const int NUM_MEASURES = 100;
+const int NUM_MEASURES = 2000;
 
 int main()
 {
@@ -545,7 +545,10 @@ int avx_strcmp(__m256i* word1, __m256i* word2)
 {
     __m256i cmp_mask = _mm256_cmpeq_epi8(*word1, *word2);
 
-    if (_mm256_movemask_epi8(cmp_mask) == -1)    {return 0;}
+    if (_mm256_movemask_epi8(cmp_mask) == -1)    
+    {
+        return 0;
+    }
 
     return -1;
 }
