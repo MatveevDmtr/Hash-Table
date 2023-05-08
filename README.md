@@ -423,12 +423,12 @@ You can see the effect of this optimization:
 
 _One measure_ means searching all words from the text. Each word is searched 1 time. There are usually nearly 2000 _measures_.
 
-New callgrind report:
-![callgrind_v2](./img/callgrind_rolhash.png)
-
 Obviously, this optimization has a good influence on program's performance.
 
-The next function to optimize in callgrind's list (except controling function SearchInList) is __strcmp__. Let's try to refine it.
+New callgrind report:
+![callgrind_v2](./img/callgrind_strcmp.png)
+
+The next functions to optimize in callgrind's list are __Hash ROL__ and __Rol__. Let's try to refine them.
 
 ### Version 2. Assembly insertion of ROL
 ##### Idea
@@ -449,9 +449,9 @@ Luckily, __rol__ function is implemented in assembly and has a hardware support.
 
 ##### Implementation
 
-Assembly insertions in C++ are written on assembly GAS. MSU has prepared a very useful [guide](http://asmcourse.cs.msu.ru/wp-content/uploads/2013/04/gcc-inline-asm.pdf) about writing assembly insertions.
+Assembly insertions in C++ are written on GNU Assembler. MSU has prepared a very useful [guide](http://asmcourse.cs.msu.ru/wp-content/uploads/2013/04/gcc-inline-asm.pdf) about writing assembly insertions.
 <details>
-<summary><b>Rol assembly insertion</b></summary>
+<summary><b>My Rol assembly insertion</b></summary>
 
 ~~~C++
 asm (
@@ -474,19 +474,20 @@ You can see the effect of this optimization:
 
 | Optimization | Elapsed time (mcs per measure)  | Absolute speed up |
 | :----------: | :---------------: | :------------------: |
-| Baseline [v.0] |      7.71        |     1                |
-| asm ins. rol [v.1]|      7.22 (7.08)         |   1.32               |
+| Baseline [v.0] |      7.13        |     1                |
+| asm ins. rol [v.1]|      6.38         |   1.12               |
 
 _One measure_ means searching all words from the text. Each word is searched 1 time. There are usually nearly 2000 _measures_.
 
 New callgrind report looks like that:
 ![callgrind_v2](./img/callgrind_asmrol.png)
 
-As we can see, inlining of __rol__ made our hash function faster (from 46.48 to __number__ in the second column).
+As we can see, inlining of __rol__ made our hash function faster. In baseline self time $13.14_\text{Hash ROL} + 10.33_\text{Rol} = 23.47$ was bigger than with asm insertion $17.43$.
+Therefore, we can conclude that this optimization made our program faster. However, __Hash ROL__ has even more oportunities to be optimized.
 
 ### Version 2. Assembly optimization of Hash ROL
 ##### Idea
-Let's go further and rewrite whole __Hash ROL__ function in assembly and call this it from C++.
+Let's go further and rewrite whole __Hash ROL__ function in assembly and call it from C++.
 
 ##### Implementation
 

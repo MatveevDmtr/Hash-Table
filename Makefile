@@ -22,10 +22,10 @@ clear:
 	rm *.o
 
 execute:
-#	./hash-table
+	./hash-table
 #   valgrind --leak-check=full ./hash-table
-	valgrind --tool=callgrind ./hash-table
-	kcachegrind
+#	valgrind --tool=callgrind ./hash-table
+#	kcachegrind
 
 clear_cache:
 	rm callgrind.*
