@@ -6,9 +6,11 @@
 //#define OPT_RS
 //#define OPT_HASHROL
 //#define OPT_ROL
+#define OPT_CRC32
 
 extern "C" size_t Mul378551(size_t num);
 extern "C" size_t asm_HashROL(const char* word);
+extern "C" size_t asm_crc32(__m256i* avx_word);
 
 const char* READ_FILE_NAME = "texts/Fahrenheit_451.txt";
 const char* CSV_FILE_NAME = "result/table_stats.csv";
@@ -125,13 +127,11 @@ int InsertWord(htab_t* hashtable, const char* word, __m256i* avx_word)
 
 int SearchWord(htab_t* hashtable, const char* word, __m256i* avx_word)
 {
+#ifdef OPT_CRC32
+    size_t index = asm_crc32(avx_word) % hashtable->size;
+#else
     size_t index = hashtable->HashFunc(word) % hashtable->size;
-
-    // if (index >= hashtable->size)
-    // {
-    //     print_log(FRAMED, "SearchError: hash value is too large to be in table");
-    //     return 0;
-    // }
+#endif
 
     int res = SearchInList(&(hashtable->table[index]), word, avx_word);
     return res;
@@ -234,6 +234,11 @@ size_t Hash_ROL(const char* word)
     return value;
 }
 
+size_t Rol(size_t value, int shift)
+{
+    return (value << shift) | (value >> (sizeof (int) - shift));
+}
+
 size_t Hash_ROR(const char* word)
 {
     size_t value = 0;
@@ -269,11 +274,6 @@ size_t Hash_Rs(const char* word)
     }
 
     return value;
-}
-
-size_t Rol(size_t value, int shift)
-{
-    return (value << shift) | (value >> (sizeof (int) - shift));
 }
 
 void HTableCtor(htab_t* hashtable, size_t size, size_t (*HashFunc)(const char * word))

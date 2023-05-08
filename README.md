@@ -1,6 +1,8 @@
 # "Hash Table"
 ## Project description
 The project's main aim is to test different hash functions and to optimize the process of searching words in a hash table. Let's make a research, how changing hash function and different optimizations influence on running time and other characteristics of our program.
+
+This project is a part of MIPT course "Basics of industrial programming" by [I.R. Dedinsky](https://github.com/ded32).
 ## Some theory
 A hash table is a data structure that implements an associative array or dictionary. It is an abstract data type that maps keys to values. A hash table uses a hash function to compute an index, also called a hash code, into an array of buckets or slots, from which the desired value can be found. 
 
@@ -151,10 +153,15 @@ size_t Hash_ROL(const char* word)
     int i = 0;
     while (word[i] != '\0')
     {
-        value = ((value << 1) | (value >> (sizeof (int) - 1))) ^ word[i];
+        value = (Rol(value, 1)) ^ word[i];
         i++;
     }
     return value;
+}
+
+size_t Rol(size_t value, int shift)
+{
+    return (value << shift) | (value >> (sizeof (int) - shift));
 }
 ~~~
 </details>
@@ -277,7 +284,7 @@ int SearchWord(htab_t* hashtable, const char* word)
 ~~~
 </details>
 
-A few words about searching in a list. In real hash tables lists don't usually contain more than 1-2 words, so such search doesn't take much time. That's why the most common idea is to organize a linear search. It can be done by "sign by sign comparison" of each word with the search word. 
+A few words about searching in a list. In real hash tables lists don't usually contain more than 1-2 words, so such search doesn't take much time. That's why the most common idea is to organize a linear search. It can be done by "sign by sign comparison" of each word from the list with the search word. 
 
 But in our test case there can be more than 40 words in a list. It really depends on the hash function that we are going to use. So linear search can be rather slow in our conditions and maybe we should optimize it.
 
@@ -341,7 +348,7 @@ Compiler usually uses __strcmp_avx2__ for standard function strcmp from \<string
 
 ##### Implementation
 
-To align all words we should create an alligned buffer, which size is $num_words \cdot 32$ bytes. Here is the function of filling such buffer:
+To align all words we should create an alligned buffer, which size is $num\_words \cdot 32$ bytes. Here is the function of filling such buffer:
 
 <details>
 <summary><b>Filling aligned buffer function</b></summary>
@@ -482,10 +489,10 @@ _One measure_ means searching all words from the text. Each word is searched 1 t
 New callgrind report looks like that:
 ![callgrind_v2](./img/callgrind_asmrol.png)
 
-As we can see, inlining of __rol__ made our hash function faster. In baseline self time $13.14_\text{Hash ROL} + 10.33_\text{Rol} = 23.47$ was bigger than with asm insertion $17.43$.
+As we can see, inlining of __rol__ made our hash function faster. In baseline self time in 2nd column ($13.14_\text{Hash ROL} + 10.33_\text{Rol} = 23.47$) was bigger than with asm insertion ($17.43$).
 Therefore, we can conclude that this optimization made our program faster. However, __Hash ROL__ has even more oportunities to be optimized.
 
-### Version 2. Assembly optimization of Hash ROL
+### Version 3. Assembly optimization of Hash ROL
 ##### Idea
 Let's go further and rewrite whole __Hash ROL__ function in assembly and call it from C++.
 
@@ -534,12 +541,55 @@ You can see the effect of this optimization:
 | asm ins. rol [v.1] |      6.38        |     1.09                |     1.09                |
 | asm rolhash [v.2]|      5.88          |   1.17               |     1.07                |
 
-_One measure_ means searching all words from the text. Each word is searched 1 time. There are usually nearly 2000 _measures_.
+_One measure_ means searching all words from the text for 1 time. Each word is searched 1 time. There are usually nearly 2000 _measures_.
 
 New callgrind report:
 ![callgrind_v2](./img/callgrind_rolhash.png)
 
-The next function to optimize in callgrind's list (except controling function SearchInList) is __strcmp__. Let's try to refine it.
+As we can see, rewriting the whole hash function in assembly appeared to be even faster than asm insertion. So, it's better to use optimization from [v.3] than from [v.2] (they are incompatible).
+
+### Version 4. Changing hash function to faster one
+##### Idea
+
+Instead of optimizing __Hash ROL__, we can change it to __CRC32__. It's a hardware supported hash function, so it may make hashing faster.
+
+##### Implementation
+
+Let's write this function on __NASM 64__ and call from C++.
+<details>
+<summary><b>CRC32 assembly implementation</b></summary>
+
+~~~nasm
+section .text
+
+global asm_crc32
+
+asm_crc32:
+    xor     rax, rax
+    crc32   rax, qword [rdi]
+    crc32   rax, qword [rdi+8]
+    crc32   rax, qword [rdi+16]
+    crc32   rax, qword [rdi+24]
+    ret
+~~~
+  
+</details>
+
+##### Performance
+You can see the effect of this optimization:
+
+| Optimization | Elapsed time (ms per measure)  | Absolute speed up (from baseline) |  Relative speed up (from prev. version) |
+| :----------: | :---------------: | :------------------: |  :------------------: |
+| Baseline [v.0] |      7.13        |     1                |     1                |
+| asm ins. rol [v.1] |      6.38        |     1.09                |     1.09                |
+| asm crc32 [v.4]|      6.09          |   1.17               |     1.07                |
+
+_One measure_ means searching all words from the text for 1 time. Each word is searched 1 time. There are usually nearly 2000 _measures_.
+
+New callgrind report:
+![callgrind_v2](./img/callgrind_rolhash.png)
+
+As we can see, rewriting the whole hash function in assembly appeared to be even faster than asm insertion. So, it's better to use optimization from [v.3] than from [v.2] (they are incompatible).
 
 
 ## Как достичь максимальной скорости вычислений? 
