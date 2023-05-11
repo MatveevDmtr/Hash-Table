@@ -45,7 +45,7 @@ These conditions should be satisfied:
 1. Size of the hash table should be a prime number;
 2. For a rather good hash function there should be 5-20 words in each list.
    
-I experimentally obtained, that this divisor should have a value _99_ for the chosen text.
+I experimentally obtained, that this divisor should have a value _99_ for the chosen text. It has such a big value, because our hash table contains words without repetition, and in literary texts one word can be repeated up to hundreds of times.
 
 So, let's start describing and analyzing each hash function.
 
@@ -428,7 +428,7 @@ You can see the effect of this optimization:
 | Baseline [v.0] |      7.13        |     1                |
 | AVX strcmp [v.1]|      6.05          |   1.17               |
 
-_One measure_ means searching all words from the text. Each word is searched 1 time. There are usually nearly 2000 _measures_.
+_One measure_ means searching all words from the text. Each word is searched 1 time. There are usually 2000 _measures_.
 
 Obviously, this optimization has a good influence on program's performance.
 
@@ -484,7 +484,7 @@ You can see the effect of this optimization:
 | Baseline [v.0] |      7.13        |     1                |
 | asm ins. rol [v.1]|      6.38         |   1.12               |
 
-_One measure_ means searching all words from the text. Each word is searched 1 time. There are usually nearly 2000 _measures_.
+_One measure_ means searching all words from the text. Each word is searched 1 time. There are usually 2000 _measures_.
 
 New callgrind report looks like that:
 ![callgrind_v2](./img/callgrind_asmrol.png)
@@ -541,7 +541,7 @@ You can see the effect of this optimization:
 | asm ins. rol [v.1] |      6.38        |     1.09                |     1.09                |
 | asm rolhash [v.2]|      5.88          |   1.17               |     1.07                |
 
-_One measure_ means searching all words from the text for 1 time. Each word is searched 1 time. There are usually nearly 2000 _measures_.
+_One measure_ means searching all words from the text for 1 time. Each word is searched 1 time. There are usually 2000 _measures_.
 
 New callgrind report:
 ![callgrind_v2](./img/callgrind_rolhash.png)
@@ -578,19 +578,50 @@ asm_crc32:
 ##### Performance
 You can see the effect of this optimization:
 
-| Optimization | Elapsed time (ms per measure)  | Absolute speed up (from baseline) |  Relative speed up (from prev. version) |
-| :----------: | :---------------: | :------------------: |  :------------------: |
-| Baseline [v.0] |      7.13        |     1                |     1                |
-| asm ins. rol [v.1] |      6.38        |     1.09                |     1.09                |
-| asm crc32 [v.4]|      6.09          |   1.17               |     1.07                |
+| Optimization     | Elapsed time (ms per measure)  | Absolute speed up (from baseline) |  Relative speed up (from prev. version) |
+| :--------------: | :---------------: | :------------------: |  :--------------------: |
+| Baseline [v.0]   |      7.13         |     1                |        1                |
+| asm rolhash [v.3]|      5.88         |     xz             |     xz                |
+| asm crc32 [v.4]  |      5.04         |          xz        |     xz                |
 
-_One measure_ means searching all words from the text for 1 time. Each word is searched 1 time. There are usually nearly 2000 _measures_.
+_One measure_ means searching all words from the text for 1 time. Each word is searched 1 time. There are usually 2000 _measures_.
 
-New callgrind report:
-![callgrind_v2](./img/callgrind_rolhash.png)
+As we can see, crc32, as a hardware supported function, appeared to be even faster than assembly __Hash ROL__. Therefore, in cases when we don't have to use complex and safe hash functions, hardware supported ones are preferable because of their speed. 
 
-As we can see, rewriting the whole hash function in assembly appeared to be even faster than asm insertion. So, it's better to use optimization from [v.3] than from [v.2] (they are incompatible).
+### Version 5. Increasing hash table size
+##### Idea
 
+At the start of this research we intensionally decreased hash table's size. It was reasonable for testing search of words. Now let's try to approach to real conditions of hash table's work and measure, how increasing hash table's size will influence the program's performance.
+
+##### Implementation
+
+In average we should have one word in each cell of our hash table. So, let's сhoose a divisor for number of words in the text to satisfy this condition. Experimatally, $divisor = 2$. 
+
+##### Performance
+You can see the effect of this optimization:
+
+| Optimization     | Elapsed time (ms per measure)  | Absolute speed up (from baseline) |
+| :--------------: | :---------------: | :------------------: |
+| Baseline [v.0]   |      7.13         |     1                |
+| inc. size [v.5]  |      xz        |          xz       |
+
+_One measure_ means searching all words from the text for 1 time. Each word is searched 1 time. There are usually 2000 _measures_.
+
+We can admire a fantastic performance: the speed up over 2 times __need fix__ is really great. 
+
+
+### General analysis
+Now we've made a lot of optimizations - it's time to combine them and choose the most successful ones. In description of each version we measured speed up from baseline (all previous optimizations were switched off). Now it's time for making combinations.
+As the majority of our optimizations are independent, the success of current optimization will cause using it in all next versions. All details can be seen in the table below:
+
+| Optimizations     | Elapsed time (ms per measure)  | Absolute speed up (from baseline) |  Relative speed up (from prev. version) |
+| :-------------------------------------------: | :---------------: | :----------------: |  :------------------: |
+| Baseline [v.0]                                |      7.13         |     1              |        1              |
+| avx strcmp [v.1]                              |      xz           |     xz             |        xz             |
+| strcmp + rol [v.1 + v.2]                      |      xz           |     xz             |     xz                |
+| strcmp + rolhash [v.1 + v.3]                  |      xz           |     xz             |     xz                |
+| strcmp + crc32 [v.1 + v.4]                    |      xz           |          xz        |     xz                |
+| strcmp + crc32 + inc. size [v.1 + v.4 + v.5]  |      xz           |          xz        |     xz                |
 
 ## Как достичь максимальной скорости вычислений? 
 
