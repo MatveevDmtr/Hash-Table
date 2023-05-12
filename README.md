@@ -1,11 +1,44 @@
-# "Hash Table"
+# "Hash Table" <!-- omit from toc -->
+
 ## Project description
-The project's main aim is to test different hash functions and to optimize the process of searching words in a hash table. Let's make a research, how changing hash function and different optimizations influence on running time and other characteristics of our program.
+The project's main aim is to test different hash functions and to optimize the process of searching words in a hash table. Let's make a research, how changing hash function and different optimizations influence on performance of our program.
 
 This project is a part of MIPT course "Basics of industrial programming" by [I.R. Dedinsky](https://github.com/ded32).
+
+## Table of contents
+
+- [Project description](#project-description)
+- [Table of contents](#table-of-contents)
+- [Some theory](#some-theory)
+- [Work plan](#work-plan)
+      - [Part 1. Testing hash functions](#part-1-testing-hash-functions)
+      - [Part 2. Optimizations](#part-2-optimizations)
+- [Auto build](#auto-build)
+- [Part 1. Testing hash functions](#part-1-testing-hash-functions-1)
+    - [Program features](#program-features)
+    - [Hash function #1. "Always 1" (Always the first)](#hash-function-1-always-1-always-the-first)
+    - [Hash function #2. "First ASCII"](#hash-function-2-first-ascii)
+    - [Hash function #3. "Strlen"](#hash-function-3-strlen)
+    - [Hash function #4. "Sum ASCII codes"](#hash-function-4-sum-ascii-codes)
+    - [Hash function #5. "ROL"](#hash-function-5-rol)
+    - [Hash function #6. "ROR"](#hash-function-6-ror)
+    - [Hash function #7. "RS"](#hash-function-7-rs)
+    - [Results](#results)
+- [Part 2. Optimizations](#part-2-optimizations-1)
+  - [Description](#description)
+  - [Version 0. No optimizations (_baseline_)](#version-0-no-optimizations-baseline)
+  - [Version 1. AVX-paralleling of strcmp](#version-1-avx-paralleling-of-strcmp)
+  - [Version 2. Assembly insertion of ROL](#version-2-assembly-insertion-of-rol)
+  - [Version 3. Assembly optimization of Hash ROL](#version-3-assembly-optimization-of-hash-rol)
+  - [Version 4. Changing hash function to faster one](#version-4-changing-hash-function-to-faster-one)
+  - [Version 5. Increasing hash table size](#version-5-increasing-hash-table-size)
+  - [General analysis](#general-analysis)
+- [Conclusion](#conclusion)
+
 ## Some theory
 A hash table is a data structure that implements an associative array or dictionary. It is an abstract data type that maps keys to values. A hash table uses a hash function to compute an index, also called a hash code, into an array of buckets or slots, from which the desired value can be found. 
 
+In this project hash table contains lists of words, but there can be other ways to arrange this data structure.
 The picture below can help you to study how a hash table should be arranged:
 ![Working principle](./img/hashtable1.png)
 
@@ -14,22 +47,29 @@ For more information about hash tables follow https://en.wikipedia.org/wiki/Hash
 ## Work plan
 Let's create a hash table that contains single linked lists. As you can see, C++ has been chosen as the main language for realization of our plans.
 Our program should have an oportunity to use different hash functions, so it's advisable to get such function as an argument.
-Then we should fill the table with a great amount of words. I've chosen "Fahrenheit 451" by Ray Bradbury as a text to get words from.
+Then we should fill the table with a great amount of words. I've chosen "Fahrenheit 451" by Ray Bradbury as a text to get words from. I've chosen the original (English) text, you can find it in the folder __text__ in this project.
 
 ##### Part 1. Testing hash functions
 Let's create diagrams that show list sizes for each hash value. Ideal hash function should have a flat diagram, so we are going to compare the results and make a kind of rating of hash functions.
 
-##### Part 2
+##### Part 2. Optimizations
 This part of the project involves creating different manual optimizations. Here is the list of optimizations we are going to use:
 1. Assembly insertions. We are going to inline some functions using GNU Assembler. Here is a [guide](http://asmcourse.cs.msu.ru/wp-content/uploads/2013/04/gcc-inline-asm.pdf) for assembly insertions in C++.
 2. Calling assembly functions from C++. Documentation for NASM can be found [here](https://www.opennet.ru/docs/RUS/nasm/).
 3. AVX (Advanced Vector Extensions, extension of Intel & AMD command system). To learn more about AVX follow [Intel Intrinsics Mirror](https://www.laruence.com/sse/).
 4. Choosing a better hash function that has a hardware support and is faster than others.
 
-A block of code to optimize will be chosen using tools from valgrind package. More details can be found [here] __hyperlink__
+A block of code to optimize is chosen using tools from valgrind package. More details can be found [here](#tools-for-analysis).
 As a result, let's compare running time of our program before and after inserting optimizations.
 
-## 
+## Auto build
+In order to run the program you should use Makefile. After cloning this repository to your computer type "make" in the terminal _in repo's directory_. Here is the description of Makefile's variables and flags:
+- __-DLOGGING__ (flag): you can turn on and off logging by adding this flag to the __CFLAGS__ variable or deleting it. 
+- __OPTFLAG__ (variable): you can choose compiler optimization (-O0, -O1, -O2, -O3 or -Ofast) and manual optimization (see [Part 2](#part-2-optimizations-1)) by adding flags to this variable.
+- __-DOPT_CMP__ (flag): turns on and off AVX-paralleling of _strcmp_ ([version 1](#version-1-avx-paralleling-of-strcmp))
+- __-DOPT_ROL__ (flag): turns on and off asm insertion of Rol ([version 2](#version-2-assembly-insertion-of-rol))
+- __-DOPT_HASHROL__ (flag): turns on and off assembly implementation of _Hash ROL_ function ([version 3](#version-3-assembly-optimization-of-hash-rol))
+- __-DOPT_CRC32__ (flag): turns on and off calling _crc32_ from asm ([version 4](#version-4-changing-hash-function-to-faster-one))
 
 ## Part 1. Testing hash functions
 
@@ -37,19 +77,18 @@ As a result, let's compare running time of our program before and after insertin
 
 Let's collect some statistics. It's advisable to create a function for saving all list sizes to csv files with appropriate names. Then, using LibreOffice or MS Excel, we should create diagrams with info from this file.
 
-Some words about size of the hash table. In real conditions hash tables have 1-2 elements in each list to get a better performance. These conditions cause a huge size of the hash table. But in case of testing hash functions 1-2 elements in each list will spoil our diagrams and make them uninformative. That's why we should intensionally decrease hash table's size to make diagrams better.
+Some words about size of the hash table. In real conditions hash tables have 1-2 elements in each list to get a better performance. These conditions cause a huge size of the hash table. But in case of testing hash functions 1-2 elements in each list spoil our diagrams and make them uninformative. That's why we should intensionally decrease hash table's size to make diagrams better.
 
-Also, theory of hashing says, that size of a hash table should be a prime number to get a better distribution. It's obvious that this size depends on amount of words in the text. Let's choose a divisor for number of words in the text:
-$$hashtable \text{ } size = \frac{number \text{ } of \text{ } words \text{ } in \text{ } the \text{ }text}{divisor}$$
+Also, theory of hashing says, that size of a hash table should be a prime number to get a better distribution. It's obvious that this size depends on amount of words in the text. Let's choose a value for hash table size.
 These conditions should be satisfied:
 1. Size of the hash table should be a prime number;
 2. For a rather good hash function there should be 5-20 words in each list.
    
-I experimentally obtained, that this divisor should have a value _99_ for the chosen text. It has such a big value, because our hash table contains words without repetition, and in literary texts one word can be repeated up to hundreds of times.
+I've taken $hashtable size = 479$ for this text. There are nearly $11,5$ words in each cell of hash table, so it's an acceptable value for our research.
 
 So, let's start describing and analyzing each hash function.
 
-#### Hash function #1. "Always 1" [Always the first]
+#### Hash function #1. "Always 1" (Always the first)
 It's a basic hash function that always returns _1_ regardless of the word. 
 
 <details>
@@ -133,7 +172,7 @@ size_t Hash_SumASCII(const char* word)
 Diagram:
 ![sumASCII](./img/hash_sumASCII.png) 
 
-The first advantage of this function, that we see in the diagram - it uses all hash value range (unlike other 3 hash functions that we have already tested). I must admit, that it's because of our intensional decreasing of hash value range. In real conditions this hash function will hardly use full hash value range. Sum of ASCII codes is limited by multiplication of max ASCII code of a letter to max number of letters in a word. Hash value range can be much bigger than the result of this multiplication.
+The first advantage of this function, that we see in the diagram - it uses all hash value range (unlike other 3 hash functions that we have already tested). I must admit, that it's because of our intensional decreasing of hash value range. In real conditions this hash function hardly uses full hash value range. Sum of ASCII codes is limited by multiplication of max ASCII code of a letter to max number of letters in a word. Hash value range can be much bigger than the result of this multiplication.
 However, the diagram has 4 pronounced peaks, and some lists have up to 29 elements. __"Sum ASCII codes"__ function looks rather attractive in comparison with __"Always 1"__, __"First ASCII"__ and __"Strlen"__, but it still has a lot of disadvantages.
 
 #### Hash function #5. "ROL"
@@ -231,43 +270,22 @@ Diagram:
 
 This function uses all hash value range too. Though the diagram has very high columns, most of them are outstanding. Generally, the values are closer to the average one, than in functions described before.
 
-## Auto build
-In order to run the program you should use Makefile. After cloning this repository to your computer type "make" in the terminal _in repo's directory_. In the Makefile's variable __CFLAGS__ you can turn on and off logging using _-DLOGGING_ flag. With the help of variable __OPTFLAG__ you can choose compiler optimization (-O0, -O1, -O2, -O3 or -Ofast) and manual optimization (see _Part 2_ __hyperlink__) using _-DOPT_CMP_, _-DOPT_RS_ and _-DOPT_ROL_ flags.
-
-## Manual build
-Compilation in terminal:
-
-```g++ -c -no-pie -mavx2 -msse2 -fno-omit-frame-pointer -DLOGGING -O2 hash-table.cpp```
-```g++ -c -no-pie -mavx2 -msse2 -fno-omit-frame-pointer -DLOGGING -O2 includes/logging/logging.cpp```
-
-Compilation of nasm function __Hash ROL__ (if neccessary):
-
-```nasm -f elf64 -l rol_asm.lst hash_rol.asm```
-
-Linking:
-
-```g++ hash-table.o logging.o hash_rol.o -o hash-table```
-
-In case of using C++ implementation of __Hash ROL__ (instead of assembly one) delete _hash_rol.o_ from this line.
-
-Finally, execute the program:
-
-```./hash-table```
+#### Results
 
 ## Part 2. Optimizations
 
 ### Description
 
-#### Tools for analysis
+#### Tools for analysis <!-- omit from toc -->
 There is a great amount of various tools and applications that can analyze your program at runtime. I've chosen callgrind profiler (an utility that is provided in a valgrind package) for my research. It emulates each executable program instruction. Callgrind uses internal metrics about the «cost» of each instruction to give us the conclusion we need.
 To install valgrind (that contains callgrind), type:
 
 ```sudo apt install valgrind```
 
-We also need a tool that will help us to read and analyze callgrind's reports. Kcachegrind is maybe one of the most useful programs for this case.
+We also need a tool that can help us to read and analyze callgrind's reports. Kcachegrind is maybe one of the most useful programs for this case.
 For more information about valgrind see its [official site](https://valgrind.org/), [quick start guide](https://valgrind.org/docs/manual/quick-start.html) and [user manual](https://valgrind.org/docs/manual/manual.html).
 
-#### Word search implemetation
+#### Word search implemetation <!-- omit from toc -->
 Probably the most important function in a hash table is a function that searches words. In my program it's rather simply implemented:
 
 <details>
@@ -314,7 +332,7 @@ int SearchInList(list_t* list, const char* word)
 ~~~
 </details>
 
-#### Choice of hash function
+#### Choice of hash function <!-- omit from toc -->
 
 According to the diagrams and statistics from part 1, we can see that the best 3 hash functions are: Hash RS, Hash ROL and Hash ROR. 
 Hash RS is rather slow and hard to optimize. 
@@ -323,14 +341,14 @@ Hash ROL has rather good diagram and there are plenty of ways to make it faster.
 Now it's time to refine the program.
 
 ### Version 0. No optimizations (_baseline_)
-#### Make search great again
+#### Make search great again <!-- omit from toc -->
 Filling hash table with the words from the text is rather slow, but it's usually done only once, right after creating a hash table. It's far more important to optimize the function that searches words, because it might be called many times.
 So, let's call it for nearly 2000 times (for all words in the text in each time) to increase the influence of search functions on the program's performance.
 
 There are 47410 words in "Fahrenheit 451" (text that is loaded into the hash table), so we are going to call __SearchWord__ function nearly $n = 47410 \cdot 2000 = 94 \text{ } 820 \text{ } 000$ times.
 
 
-#### General analysis of profiling data
+#### General analysis of profiling data <!-- omit from toc -->
 
 Let's have a look at a callgrind report.
 
@@ -343,10 +361,10 @@ __SearchInList__ consists of almost one for-cycle and is too simple to be optimi
 Next function in callgrind's list is __strcmp__. It seems to be not efficent enough. Let's try to make it faster.
 
 ### Version 1. AVX-paralleling of strcmp
-##### Idea
-Compiler usually uses __strcmp_avx2__ for standard function strcmp from \<string.h\>. The main idea is to align all words (make their addresses divisible by 32 bytes). It will give us a chance to use ordered AVX2 instructions that are faster than unordered ones.
+##### Idea <!-- omit from toc -->
+Compiler usually uses __strcmp_avx2__ for standard function strcmp from \<string.h\>. The main idea is to align all words (make their addresses divisible by 32 bytes). It gives us a chance to use ordered AVX2 instructions that are faster than unordered ones.
 
-##### Implementation
+##### Implementation <!-- omit from toc -->
 
 To align all words we should create an alligned buffer, which size is $num\_words \cdot 32$ bytes. Here is the function of filling such buffer:
 
@@ -420,13 +438,13 @@ int avx_strcmp(__m256i* word1, __m256i* word2)
   
 </details>
 
-##### Performance
+##### Performance <!-- omit from toc -->
 You can see the effect of this optimization:
 
 | Optimization | Elapsed time (ms per measure)  | Absolute speed up (from baseline) |
 | :----------: | :---------------: | :------------------: |
-| Baseline [v.0] |      7.13        |     1                |
-| AVX strcmp [v.1]|      6.05          |   1.17               |
+| Baseline [v.0] |      7.23        |     1                |
+| AVX strcmp [v.1]|      6.05          |   1.20               |
 
 _One measure_ means searching all words from the text. Each word is searched 1 time. There are usually 2000 _measures_.
 
@@ -438,7 +456,7 @@ New callgrind report:
 The next functions to optimize in callgrind's list are __Hash ROL__ and __Rol__. Let's try to refine them.
 
 ### Version 2. Assembly insertion of ROL
-##### Idea
+##### Idea <!-- omit from toc -->
 In C++ there is no special function for rotating numbers, so ROL is implemented using 2 bit shifts:
 
 <details>
@@ -454,7 +472,7 @@ size_t Rol(size_t value, int shift)
 
 Luckily, __rol__ function is implemented in assembly and has a hardware support. Let's make an assembly insertion.
 
-##### Implementation
+##### Implementation <!-- omit from toc -->
 
 Assembly insertions in C++ are written on GNU Assembler. MSU has prepared a very useful [guide](http://asmcourse.cs.msu.ru/wp-content/uploads/2013/04/gcc-inline-asm.pdf) about writing assembly insertions.
 <details>
@@ -475,28 +493,28 @@ asm (
   
 </details>
 
-##### Performance
+##### Performance <!-- omit from toc -->
 
 You can see the effect of this optimization:
 
 | Optimization | Elapsed time (mcs per measure)  | Absolute speed up |
 | :----------: | :---------------: | :------------------: |
-| Baseline [v.0] |      7.13        |     1                |
-| asm ins. rol [v.1]|      6.38         |   1.12               |
+| Baseline [v.0] |      7.23        |     1                |
+| asm ins. rol [v.1]|      6.45         |   1.12               |
 
 _One measure_ means searching all words from the text. Each word is searched 1 time. There are usually 2000 _measures_.
 
 New callgrind report looks like that:
 ![callgrind_v2](./img/callgrind_asmrol.png)
 
-As we can see, inlining of __rol__ made our hash function faster. In baseline self time in 2nd column ($13.14_\text{Hash ROL} + 10.33_\text{Rol} = 23.47$) was bigger than with asm insertion ($17.43$).
+As we can see, inlining __rol__ made our hash function faster. In baseline self time in 2nd column ($13.14_\text{Hash ROL} + 10.33_\text{Rol} = 23.47$) was bigger than with asm insertion ($17.43$).
 Therefore, we can conclude that this optimization made our program faster. However, __Hash ROL__ has even more oportunities to be optimized.
 
 ### Version 3. Assembly optimization of Hash ROL
-##### Idea
+##### Idea <!-- omit from toc -->
 Let's go further and rewrite whole __Hash ROL__ function in assembly and call it from C++.
 
-##### Implementation
+##### Implementation <!-- omit from toc -->
 
 The function is written on __NASM 64__.
 <details>
@@ -532,28 +550,30 @@ asm_HashROL:
   
 </details>
 
-##### Performance
+##### Performance <!-- omit from toc -->
 You can see the effect of this optimization:
 
 | Optimization | Elapsed time (ms per measure)  | Absolute speed up (from baseline) |  Relative speed up (from prev. version) |
 | :----------: | :---------------: | :------------------: |  :------------------: |
-| Baseline [v.0] |      7.13        |     1                |     1                |
-| asm ins. rol [v.1] |      6.38        |     1.09                |     1.09                |
-| asm rolhash [v.2]|      5.88          |   1.17               |     1.07                |
+| Baseline [v.0] |      7.23        |     1                |     1                |
+| asm ins. rol [v.1] |      6.45        |     1.12                |     1.12                |
+| asm rolhash [v.2]|      6.01          |   1.20               |     1.07                |
 
 _One measure_ means searching all words from the text for 1 time. Each word is searched 1 time. There are usually 2000 _measures_.
 
 New callgrind report:
-![callgrind_v2](./img/callgrind_rolhash.png)
+![callgrind_v2](./img/callgrind_v3.png)
 
 As we can see, rewriting the whole hash function in assembly appeared to be even faster than asm insertion. So, it's better to use optimization from [v.3] than from [v.2] (they are incompatible).
 
+The next function to optimize (except __strcmp__ that is used in filling hash table) is __FillHTable__. This function is not related to searching words, so we don't have an aim to optimize such functions in this work. Instead of it, let's try to change hash function.
+
 ### Version 4. Changing hash function to faster one
-##### Idea
+##### Idea <!-- omit from toc -->
 
 Instead of optimizing __Hash ROL__, we can change it to __CRC32__. It's a hardware supported hash function, so it may make hashing faster.
 
-##### Implementation
+##### Implementation <!-- omit from toc -->
 
 Let's write this function on __NASM 64__ and call from C++.
 <details>
@@ -575,89 +595,83 @@ asm_crc32:
   
 </details>
 
-##### Performance
+##### Performance <!-- omit from toc -->
 You can see the effect of this optimization:
 
 | Optimization     | Elapsed time (ms per measure)  | Absolute speed up (from baseline) |  Relative speed up (from prev. version) |
 | :--------------: | :---------------: | :------------------: |  :--------------------: |
-| Baseline [v.0]   |      7.13         |     1                |        1                |
-| asm rolhash [v.3]|      5.88         |     xz             |     xz                |
-| asm crc32 [v.4]  |      5.04         |          xz        |     xz                |
+| Baseline [v.0]   |      7.23         |     1                |        1                |
+| asm rolhash [v.3]|      6.01         |     1.20             |     1.20                |
+| asm crc32 [v.4]  |      5.19         |     1.39             |     1.16                |
 
 _One measure_ means searching all words from the text for 1 time. Each word is searched 1 time. There are usually 2000 _measures_.
 
 As we can see, crc32, as a hardware supported function, appeared to be even faster than assembly __Hash ROL__. Therefore, in cases when we don't have to use complex and safe hash functions, hardware supported ones are preferable because of their speed. 
 
 ### Version 5. Increasing hash table size
-##### Idea
+##### Idea <!-- omit from toc -->
 
-At the start of this research we intensionally decreased hash table's size. It was reasonable for testing search of words. Now let's try to approach to real conditions of hash table's work and measure, how increasing hash table's size will influence the program's performance.
+At the start of this research we intensionally decreased hash table's size. It was reasonable for testing search of words. Now let's try to approach to real conditions of hash table's work. We are going to measure, how increasing hash table's size influences the program's performance.
 
-##### Implementation
+##### Implementation <!-- omit from toc -->
 
-In average we should have one word in each cell of our hash table. So, let's сhoose a divisor for number of words in the text to satisfy this condition. Experimatally, $divisor = 2$. 
+In average we should have one word in each cell of our hash table. So, let's сhoose a value of hash table size to satisfy this condition. Experimatally, $hashtable \text{ } size = 3583$, which is a prime number. There are $1.53$ words in each cell in average.
 
-##### Performance
+##### Performance <!-- omit from toc -->
 You can see the effect of this optimization:
 
 | Optimization     | Elapsed time (ms per measure)  | Absolute speed up (from baseline) |
 | :--------------: | :---------------: | :------------------: |
-| Baseline [v.0]   |      7.13         |     1                |
-| inc. size [v.5]  |      xz        |          xz       |
+| Baseline [v.0]   |      7.23         |     1                |
+| inc. size [v.5]  |      3.76        |          1.92       |
 
 _One measure_ means searching all words from the text for 1 time. Each word is searched 1 time. There are usually 2000 _measures_.
 
-We can admire a fantastic performance: the speed up over 2 times __need fix__ is really great. 
+We can admire a fantastic performance: the speed up is really great. 
 
 
 ### General analysis
 Now we've made a lot of optimizations - it's time to combine them and choose the most successful ones. In description of each version we measured speed up from baseline (all previous optimizations were switched off). Now it's time for making combinations.
-As the majority of our optimizations are independent, the success of current optimization will cause using it in all next versions. All details can be seen in the table below:
+As the majority of our optimizations are independent, so the success of current optimization causes using it in all next versions. All details can be seen in the table below:
+
+| Optimizations     | Elapsed time (ms per measure)  | Absolute speed up (from baseline) |  Relative speed up (from prev. version) |
+| :-------------------------------------------: | :-----------------: | :----------------: |  :------------------: |
+| Baseline [v.0]                                |      7.23           |     1              |        1              |
+| avx strcmp [v.1]                              |      6.05           |     1.20             |        1.20             |
+| strcmp + rol [v.1 + v.2]                      |      5.57           |     1.30             |     1.09                |
+| strcmp + rolhash [v.1 + v.3]                  |      5.09           |     1.42             |     1.09                |
+| strcmp + crc32 [v.1 + v.4]                    |      3.78           |     1.91             |     1.35                |
+
+Increasing hash table size is a serious change of conditions that outruns all code optimizations. That's why it should be considered as a new baseline.
 
 | Optimizations     | Elapsed time (ms per measure)  | Absolute speed up (from baseline) |  Relative speed up (from prev. version) |
 | :-------------------------------------------: | :---------------: | :----------------: |  :------------------: |
-| Baseline [v.0]                                |      7.13         |     1              |        1              |
-| avx strcmp [v.1]                              |      xz           |     xz             |        xz             |
-| strcmp + rol [v.1 + v.2]                      |      xz           |     xz             |     xz                |
-| strcmp + rolhash [v.1 + v.3]                  |      xz           |     xz             |     xz                |
-| strcmp + crc32 [v.1 + v.4]                    |      xz           |          xz        |     xz                |
-| strcmp + crc32 + inc. size [v.1 + v.4 + v.5]  |      xz           |          xz        |     xz                |
+| inc. size (new baseline) [v.5]                |      3.76           |          1       |     1                |
+| avx strcmp [v.1]                              |      3.51           |          1.07    |        1.07             |
+| inc. size + strcmp + rolhash [v.1 + v.3 + v.5]|      2.67           |          1.40    |     1.31                |
+| inc. size + strcmp + crc32 [v.1 + v.4 + v.5]  |      1.44           |          2.61    |     1.85                |
 
-## Как достичь максимальной скорости вычислений? 
+Let's analyze these tables.
 
-Проведем измерения FPS (количество кадров в секунду, что соответствует количеству рассчетов целого множества в секунду). Для повышения точности измерений будем усреднять значение FPS за первые 200 рассчетов множества. После 200-ой итерации в консоль выводится надпись "end of measuring". Значит, можно закрывать окно и считывать усредненное значение FPS, которое так же будет выведено в консоль сразу после закрытия окна.
-Число 200 выбрано экспериментально по соотношению "время тестирования-точность результата". При желании в коде можно изменять число измерений (константа NUM_MEASURES).
-В процессе измерений важно не двигать мышкой, не нажимать кнопки клавиатуры и не нагружать процессор другими способами. Эти сторонние факторы могут исказить результаты измерений.
-Для упрощения измерений запустим функции с рассчета с AVX и без AVX последовательно друг за другом, вычисляя FPS отдельно для каждой функции.
+#### Table 1. Small hash table size <!-- omit from toc -->
 
-### С отрисовкой
+My AVX strcmp outran library one because of aligning words. Increase of performance is sufficient (20%).
+Inlining rol made the program 10% faster, but rewriting the whole __Hash ROL__ function was even more efficent (10% speed up from inlining rol).
+However, CRC32 outran all my attempts to write __Hash ROL__ function in assembly. Maybe it's because of __CRC32__'s hardware support.
 
+#### Table 2. Big hash table size <!-- omit from toc -->
+But the most efficent optimization was to approach to real conditions. I increased the hash table's size (that was intensionally decreased at the beginning of the research).
+However, in this new conditions optimizations appeared to be even more efficent.
 
-| Флаг оптимизации |       AVX2, fps        |    Без AVX2, fps    | Ускорение, раз |
-| :------:         | :---------------: | :------------: | :------------: |
-|    none          |       13.3        |       4.4      |       3.0      |
-|    -O3           |       35.4        |       8.4      |       4.2      |
-|   -Ofast         |       37.2        |       8.6      |       4.3      |
+On the one hand, __strcmp__'s speed up is not so big as in the 1st table (7% instead of 20%). Every list in hash table became shorter. Instead of comparing with nearly 11 words in a list we started to compare with 1-2 words. The importance of strcmp dropped, so it's influence on performance is rather small.
 
-В графе "Ускорение" указано, во сколько раз использование AVX ускорило расчет по сравнению с одиночными вычислениями $\textit{при неизменном флаге компиляторной оптимизации}$.
+On the other hand, optimization of hash function became even more important, so the speed up of __CRC32__ rose up to nearly 2 times. 
 
-Как мы видим, ускорение вычислений оставляет желать лучшего. Значительную часть времени работы программы составляет время, которое библиотека SFML тратит на отрисовку множества. Программно уберем отрисовку (сделаем пустое окно) и посмотрим, какого ускорения мы сможем достичь в этом случае. 
+## Conclusion
+All in all, I tested different hash functions and optimized the process of search in a hash table.
 
-### Без отрисовки
-Проведем замеры FPS для разных оптимизаций при отключенной отрисовке. 
-| Флаг оптимизации |       AVX2, fps        |    Без AVX2, fps    | Ускорение, раз |
-| :------:         | :---------------: | :------------: | :------------: |
-|       none       |       15.6        |       4.6      |       3.4      |
-|       -O1        |       57.9        |       8.9      |       6.5      |
-|       -O2        |       60.0        |       9.0      |       6.7      |
-|       -O3        |       58.6        |       9.1      |       6.4      |
-|       -Ofast     |       64.2        |       9.4      |       6.8      |
+Among the hash functions I tested __Hash_RS__ has the best diagram. However, there is a plenty of different hash functions that have different parameters, so choice of hash function can be a whole science. But in this project you can see a method that allows us to compare other hash functions.
 
-В графе "Ускорение" указано, во сколько раз использование AVX ускорило расчет по сравнению с одиночными вычислениями $\textit{при неизменном флаге компиляторной оптимизации}$.
+My optimizations of strcmp and hash functions made the program faster (the speed up is bigger than 2.5 times). So we can consider this work to be successful.
 
-Отключение отрисовки существенно сказалось на времени работы программы. При малых FPS влияние отрисовки мало: 4.4 fps превратилось в 4.6 fps, ускорение в 1.05 раза. При высоких скоростях вычислений отрисовка занимает около 42% времени, что позволяет увеличить fps с 37.2 до 64.2 при её отключении.
-
-## Сравнение результатов и выводы
-Итого, мы получили, что использование AVX2 позволяет сократить время работы программы в 3-7 раз (в зависимости от типа компиляторной оптимизации). Таким образом, AVX2 в некоторых случаях может "обогнать" по времени компиляторные оптимизации, примененные к стандартному алгоритму. Одним из примеров объемных вычислений, для которых AVX-команды наиболее эффективны, и является множество Мандельброта, которое было исследовано в данном проекте.
-
-Также необходимо отметить, что результаты измерений fps сильно зависят от многих факторов: от типа и модели процессора, от его загруженности и даже температуры. Результаты, представленные в работе, соответствуют запуску программы на процессоре Intel Core i5 при использовании Linux Mint 21. Все результаты получены при соблюдении практически одинаковых внешних условий. Однако, например, при других условиях запуска при максимальном использовании оптимизаций удается получить до 82 fps. Результаты измерений могут количественно отличаться в зависимости от условий запуска программы, но все качественные зависимости и тенденции, отмеченные в работе, сохранятся.
+I think this work may be useful not only for me, but for other people who work with hash tables.
