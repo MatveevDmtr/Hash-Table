@@ -57,7 +57,7 @@ void TestHashFunc(wordsbuf_t* words_buf, avx_wordsbuf_t* avx_wordsbuf, size_t (*
 void TestSearching(wordsbuf_t* words_buf, avx_wordsbuf_t* avx_wordsbuf, size_t (*HashFunc)(const char * word));
 
 
-int avx_strcmp(__m256i* word1, __m256i* word2);
+extern "C" int avx_strcmp(__m256i* word1, __m256i* word2);
 void FillAVXWordsBuf(avx_wordsbuf_t* avx_wordsbuf, wordsbuf_t* words_buf);
 //end prototypes
 

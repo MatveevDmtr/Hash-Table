@@ -3,11 +3,13 @@
 //#define OPT_HASHROL
 //#define OPT_ROL
 //#define OPT_CRC32
+//#define OPT_SEARCH
 
 #include "includes/hash-table.hpp"
 
 extern "C" size_t asm_HashROL(const char* word);
 extern "C" size_t asm_crc32(__m256i* avx_word);
+extern "C" size_t asm_SearchInList(list_t* list, const char* word, __m256i* avx_word);
 
 const char* READ_FILE_NAME = "texts/Fahrenheit_451.txt";
 const char* CSV_FILE_NAME = "result/table_stats.csv";
@@ -32,10 +34,10 @@ int main()
     FillAVXWordsBuf(&avx_wordsbuf, &words_buf);
     log("avx words buf filled\n");
 
-    // TestHashFunc(&words_buf, Hash_Always1, "hash_always1");
+    //TestHashFunc(&words_buf, &avx_wordsbuf, Hash_Always1, "crc32");
     // TestHashFunc(&words_buf, Hash_FirstASCII, "hash_firstASCII");
     // TestHashFunc(&words_buf, Hash_Strlen, "hash_strlen");
-    // TestHashFunc(&words_buf, Hash_SumASCII, "hash_sumASCII");
+    //TestHashFunc(&words_buf, &avx_wordsbuf, Hash_SumASCII, "sum_ascii");
     // TestHashFunc(&words_buf, &avx_wordsbuf, Hash_ROL, "hash_rol");
     // TestHashFunc(&words_buf, Hash_ROR, "hash_ror");
     // TestHashFunc(&words_buf, Hash_Rs, "hash_rs");
@@ -58,6 +60,7 @@ void TestSearching(wordsbuf_t* words_buf, avx_wordsbuf_t* avx_wordsbuf, size_t (
     
     FillHTable(&hashtable, words_buf, avx_wordsbuf);
 
+    HTableDump(&hashtable);
 
     log("start searching words\n");
 
@@ -96,16 +99,20 @@ void TestHashFunc(wordsbuf_t* words_buf, avx_wordsbuf_t* avx_wordsbuf, size_t (*
 
 int InsertWord(htab_t* hashtable, const char* word, __m256i* avx_word)
 {
-    Assert(hashtable == nullptr);
-    Assert(avx_word == nullptr);
+    //Assert(hashtable == nullptr);
+    //Assert(avx_word == nullptr);
 
+#ifdef OPT_CRC32
+    size_t index = asm_crc32(avx_word) % hashtable->size;
+#else
     size_t index = hashtable->HashFunc(word) % hashtable->size;
+#endif
 
     node_t* node = hashtable->table[index].head;
 
     for (size_t i = 0; i < hashtable->table[index].size; i++)
     {
-        if (!strcmp(word, node->elem))
+        if (strcmp(word, node->elem) == 0)
         {
             log("Word %s is already here\n", word);
             return 0;
@@ -123,13 +130,28 @@ int InsertWord(htab_t* hashtable, const char* word, __m256i* avx_word)
 
 int SearchWord(htab_t* hashtable, const char* word, __m256i* avx_word)
 {
+    Assert(word == nullptr);
+    Assert(avx_word == nullptr);
+
 #ifdef OPT_CRC32
+    log ("counting crc32\n");
     size_t index = asm_crc32(avx_word) % hashtable->size;
+    log ("finish crc32\n");
 #else
     size_t index = hashtable->HashFunc(word) % hashtable->size;
+    log("index: %d\n", index);
 #endif
 
-    int res = SearchInList(&(hashtable->table[index]), word, avx_word);
+    //log("%d\n", hashtable->table[index].head);
+
+int res = 0;
+#ifdef OPT_SEARCH
+    res = asm_SearchInList(&(hashtable->table[index]), word, avx_word);
+    //printf("%d", res);
+#else
+    res = SearchInList(&(hashtable->table[index]), word, avx_word);
+#endif
+
     return res;
 }
 
@@ -140,13 +162,13 @@ int SearchInList(list_t* list, const char* word, __m256i* avx_word)
     for (size_t list_i = 0; list_i < list->size; list_i++)
     {
 #ifdef OPT_CMP
-        if (!avx_strcmp(node->avx_elem, avx_word))
+        if (avx_strcmp(node->avx_elem, avx_word) == 0)
         {
             //log("Word \"%s\" found!\n", word);
             return list_i;
         }
 #else
-        if (!strcmp(node->elem, word))
+        if (strcmp(node->elem, word) == 0)
         {
             //log("Word \"%s\" found!\n", word);
             return list_i;
@@ -288,8 +310,6 @@ void HTableResize(htab_t* hashtable, size_t new_size)
 }
 
 
-#ifdef OPT_CMP
-
 int avx_strcmp(__m256i* word1, __m256i* word2)
 {
     __m256i cmp_mask = _mm256_cmpeq_epi8(*word1, *word2);
@@ -301,4 +321,3 @@ int avx_strcmp(__m256i* word1, __m256i* word2)
 
     return -1;
 }
-#endif // OPT_CMP
