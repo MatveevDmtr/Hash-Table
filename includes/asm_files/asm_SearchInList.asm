@@ -3,6 +3,22 @@ section .text
 extern avx_strcmp
 global asm_SearchInList
 
+;   int SearchInList(list_t* list, const char* word, __m256i* avx_word)
+;   {
+;       node_t* node = list->head
+;   
+;       for (size_t list_i = 0; list_i < list->size; list_i++)
+;       {
+;            if (avx_strcmp(node->avx_elem, avx_word) == 0)
+;           {
+;               return list_i;
+;           }     
+;           node = node->next;
+;       }
+;
+;       return -1;
+;   }
+
 asm_SearchInList:
     pop r15
 

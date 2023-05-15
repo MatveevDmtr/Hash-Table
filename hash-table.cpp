@@ -18,7 +18,7 @@ const char* RES_EXT = ".csv";
 const int HASHTABLE_SIZE = 3583; //3583 or 479
 const int NUM_MEASURES = 2000;
 
-int main()
+int main(int argc, const char* argv[])
 {
     textbuf_t textbuf = {};
 
@@ -32,21 +32,22 @@ int main()
     FillWordsBuf(&textbuf, &words_buf);
 
     FillAVXWordsBuf(&avx_wordsbuf, &words_buf);
+
+    for(int i = 1; i < argc; i++)
+    {
+        if      (strcasecmp(argv[i], "Hash_Always1") == 0)                TestHashFunc (&words_buf, &avx_wordsbuf, Hash_Always1,    argv[i]);
+        else if (strcasecmp(argv[i], "Hash_FirstASCII") == 0)             TestHashFunc (&words_buf, &avx_wordsbuf, Hash_FirstASCII, argv[i]);
+        else if (strcasecmp(argv[i], "Hash_Strlen") == 0)                 TestHashFunc (&words_buf, &avx_wordsbuf, Hash_Strlen,     argv[i]);
+        else if (strcasecmp(argv[i], "Hash_SumASCII") == 0)               TestHashFunc (&words_buf, &avx_wordsbuf, Hash_SumASCII,   argv[i]);
+        else if (strcasecmp(argv[i], "Hash_ROL") == 0)                    TestHashFunc (&words_buf, &avx_wordsbuf, Hash_ROL,        argv[i]);
+        else if (strcasecmp(argv[i], "Hash_ROR") == 0)                    TestHashFunc (&words_buf, &avx_wordsbuf, Hash_ROR,        argv[i]);
+        else if (strcasecmp(argv[i], "Hash_Rs") == 0)                     TestHashFunc (&words_buf, &avx_wordsbuf, Hash_Rs,         argv[i]);
+        else if (strcasecmp(argv[i], "optimizations_asm_HashROL") == 0)   TestSearching(&words_buf, &avx_wordsbuf, asm_HashROL);
+        else if (strcasecmp(argv[i], "optimizations") == 0)               TestSearching(&words_buf, &avx_wordsbuf, Hash_ROL);
+        else                                                              printf("Warning: invalid cmd arg [%d]: \"%s\"\n", i, argv[i]);
+    }
+    
     log("avx words buf filled\n");
-
-    //TestHashFunc(&words_buf, &avx_wordsbuf, Hash_Always1, "crc32");
-    // TestHashFunc(&words_buf, Hash_FirstASCII, "hash_firstASCII");
-    // TestHashFunc(&words_buf, Hash_Strlen, "hash_strlen");
-    //TestHashFunc(&words_buf, &avx_wordsbuf, Hash_SumASCII, "sum_ascii");
-    // TestHashFunc(&words_buf, &avx_wordsbuf, Hash_ROL, "hash_rol");
-    // TestHashFunc(&words_buf, Hash_ROR, "hash_ror");
-    // TestHashFunc(&words_buf, Hash_Rs, "hash_rs");
-
-#ifdef OPT_HASHROL
-    TestSearching(&words_buf, &avx_wordsbuf, asm_HashROL);
-#else
-    TestSearching(&words_buf, &avx_wordsbuf, Hash_ROL);
-#endif
 
     FreeTextBuf(&textbuf);
     FreeWordsBuf(&words_buf);    

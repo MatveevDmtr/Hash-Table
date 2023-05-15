@@ -35,7 +35,7 @@ clear:
 	rm *.o
 
 execute:
-	./hash-table
+	./hash-table Hash_Always1
 #	valgrind --leak-check=full ./hash-table
 #	valgrind --tool=callgrind ./hash-table
 #	kcachegrind
