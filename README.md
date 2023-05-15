@@ -362,7 +362,7 @@ In this report functions are sorted by __self__.
 The most "heavy" function is `strcmp()` (self $38.64$). It seems to be not efficent enough. Let's try to make it faster.
 
 ### Version 1. AVX-paralleling of strcmp
-##### Idea <!-- omit from toc -->
+##### The idea <!-- omit from toc -->
 Compiler usually uses `strcmp_avx2()` for standard function `strcmp()` from \<string.h\>. The main idea is to align all words (make their addresses divisible by 32 bytes). It gives us a chance to use ordered AVX2 instructions that are faster than unordered ones.
 
 ##### Implementation <!-- omit from toc -->
@@ -458,7 +458,7 @@ As we can see, `strcmp()` is still the most heavy function. But using avx made t
 The next function to optimize in callgrind list is `SearchInList()`. Let's try to refine it.
 
 ### Version 2. Assembly Search In List
-##### Idea <!-- omit from toc -->
+##### The idea <!-- omit from toc -->
 Actually, `SearchInList()` contains one `for`-cycle. Let's rewrite it in __NASM 64__.
 
 ##### Implementation <!-- omit from toc -->
@@ -541,7 +541,7 @@ New callgrind report:
 The next functions to optimize in callgrind list are `Hash ROL` and `Rol`. Let's try to refine them.
 
 ### Version 3. Inlining ROL
-##### Idea <!-- omit from toc -->
+##### The idea <!-- omit from toc -->
 In C++ there is no special function for rotating numbers, so ROL is implemented using 2 bit shifts:
 
 <details>
@@ -597,7 +597,7 @@ As we can see, inlining `rol` didn't make our hash function faster. However, in 
 Therefore, we can conclude that this optimization has a negative effect on running time of the program. We shouldn't use inlining `rol` in next versions. However, `Hash ROL()` has even more oportunities to be optimized.
 
 ### Version 4. Assembly optimization of Hash ROL
-##### Idea <!-- omit from toc -->
+##### The idea <!-- omit from toc -->
 Let's go further and rewrite whole `Hash ROL()` function in assembly and call it from C++.
 
 ##### Implementation <!-- omit from toc -->
@@ -655,7 +655,7 @@ As we can see, rewriting the whole hash function in assembly appeared to be even
 The next function to optimize (except `strcmp` that is used in filling hash table) is `FillHTable`. This function is not related to searching words, so we don't have an aim to optimize such functions in this work. Instead of it, let's try to change hash function.
 
 ### Version 5. Changing hash function to faster one
-##### Idea <!-- omit from toc -->
+##### The idea <!-- omit from toc -->
 
 Instead of optimizing __Hash ROL__, we can change it to __CRC32__. It's a hardware supported hash function, so it may make hashing faster.
 
@@ -699,7 +699,7 @@ This function is fast and it's diagram is rather good:
 Therefore, in cases when we don't have to use complex and safe hash functions, hardware supported ones are preferable because of their speed. 
 
 ### Version 6. Increasing hash table size
-##### Idea <!-- omit from toc -->
+##### The idea <!-- omit from toc -->
 
 At the start of this research we intensionally decreased hash table's size. It was reasonable for testing search of words. Now let's try to approach to real conditions of hash table's work. We are going to measure, how increasing hash table's size influences the program's performance.
 
