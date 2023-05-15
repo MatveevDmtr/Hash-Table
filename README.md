@@ -593,8 +593,8 @@ _One measure_ means searching all words from the text. Each word is searched 1 t
 New callgrind report looks like that:
 ![callgrind_v2](./img/callgrind_new_rol.png)
 
-As we can see, inlining `rol` made our hash function faster. In baseline self time in 2nd column ($35.40_\text{Hash ROL} + 27.84_\text{Rol} = 63.24$) was bigger than now ($41.78$).
-Therefore, we can conclude that this optimization made our program faster. However, `Hash ROL()` has even more oportunities to be optimized.
+As we can see, inlining `rol` didn't make our hash function faster. However, in baseline self time in 2nd column ($35.40_\text{Hash ROL} + 27.84_\text{Rol} = 63.24$) was bigger than now ($41.78$).
+Therefore, we can conclude that this optimization has a negative effect on running time of the program. We shouldn't use inlining `rol` in next versions. However, `Hash ROL()` has even more oportunities to be optimized.
 
 ### Version 4. Assembly optimization of Hash ROL
 ##### Idea <!-- omit from toc -->
@@ -740,13 +740,13 @@ Let's analyze this table.
 
 The speed up of `avx_strcmp()` optimization is very small (only 1%). Every list in hash table became shorter. Instead of comparing a word with nearly 11 words in a list we started to compare it with 1-2 words. The importance of strcmp dropped, so its influence on performance is tiny.
 
-The most efficent optimization is 
+The most efficent optimizations are: rewriting `SearchInList()` and changing hash function to `CRC32`.
 
 ## Conclusion
 All in all, I tested different hash functions and optimized the process of search in a hash table.
 
-Among the hash functions I tested __Hash_RS__ has the best diagram. However, there is a plenty of different hash functions that have different parameters, so choice of hash function can be a whole science. But in this project you can see a method that allows us to compare other hash functions.
+Among the hash functions I tested `Hash_RS` has the best diagram. However, there is a plenty of different hash functions that have different parameters, so choice of hash function can be a whole science. But in this project you can see a method that allows us to compare other hash functions.
 
-My optimizations of strcmp and hash functions made the program faster (the speed up is bigger than 2.5 times). So we can consider this work to be successful.
+My optimizations of strcmp and hash functions made the program faster (the speed up is 9.9 times). So we can consider this work to be successful.
 
 I think this work may be useful not only for me, but for other people who work with hash tables.
