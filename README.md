@@ -33,6 +33,7 @@ This project is a part of MIPT course "Basics of industrial programming" by [I.R
   - [Version 4. Assembly optimization of Hash ROL](#version-4-assembly-optimization-of-hash-rol)
   - [Version 5. Changing hash function to faster one](#version-5-changing-hash-function-to-faster-one)
   - [Version 6. Increasing hash table size](#version-6-increasing-hash-table-size)
+  - [Version 7. Saving list head in list structure](#version-7-saving-list-head-in-list-structure)
   - [General analysis](#general-analysis)
 - [Conclusion](#conclusion)
 
@@ -719,6 +720,42 @@ You can see the effect of this optimization:
 _One measure_ means searching all words from the text for 1 time. Each word is searched 1 time. There are usually 2000 _measures_.
 
 We can admire a fantastic performance: the speed up is really great. 
+
+### Version 7. Saving list head in list structure
+##### The idea <!-- omit from toc -->
+
+When the load factor is small, we can optimize our hash table by saving list head in list structure. It may decrease number of pointer transitions while searching in a list.
+
+##### Implementation <!-- omit from toc -->
+
+New list structure looks like this:
+
+<details>
+<summary><b>New structure of list</b></summary>
+
+~~~C++
+typedef struct hashtable_list
+{
+    node_t head;
+    size_t  size;
+} list_t;
+~~~
+</details>
+
+Let's change a bit some functions and makefile to create a new version with this optimization.
+
+##### Performance <!-- omit from toc -->
+As it's a serious change of conditions. let's turn off all previous optimizations and consider Version 6 as a new baseline.
+You can see the effect of this optimization:
+
+| Optimization     | Elapsed time (ms per measure)  | Absolute speed up (from baseline) |
+| :--------------: | :---------------: | :------------------: |
+| strcmp + search + crc32 + inc. size (new baseline) [v.6]                          |      1.27         |     1                |
+| strcmp + search + crc32 + inc. size + headed lists [v.6 + v.1 + v.2 + v.5] [v.7]  |      1.17         |          1.09       |
+
+_One measure_ means searching all words from the text for 1 time. Each word is searched 1 time. There are usually 2000 _measures_.
+
+This optimization didn't seem to be efficent, but the speed up is decent: 9%. So, this optimization is successful. 
 
 
 ### General analysis

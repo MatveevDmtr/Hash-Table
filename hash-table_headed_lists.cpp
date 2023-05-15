@@ -1,11 +1,4 @@
-//#define OPT_CMP
-//#define OPT_RS
-//#define OPT_HASHROL
-//#define OPT_ROL
-//#define OPT_CRC32
-//#define OPT_SEARCH
-
-#include "includes/hash-table.hpp"
+#include "includes/hash-table_headed_lists.hpp"
 
 extern "C" size_t asm_HashROL(const char* word);
 extern "C" size_t asm_crc32(__m256i* avx_word);
@@ -109,7 +102,7 @@ int InsertWord(htab_t* hashtable, const char* word, __m256i* avx_word)
     size_t index = hashtable->HashFunc(word) % hashtable->size;
 #endif
 
-    node_t* node = hashtable->table[index].head;
+    node_t* node = &hashtable->table[index].head;
 
     for (size_t i = 0; i < hashtable->table[index].size; i++)
     {
@@ -121,10 +114,13 @@ int InsertWord(htab_t* hashtable, const char* word, __m256i* avx_word)
         node = node->next;
     }
 
-    node_t* next = hashtable->table[index].head;
-    hashtable->table[index].head = NewNode(word, avx_word);
-    hashtable->table[index].head->next = next;
+    node_t* next = NewNode(word, avx_word);
+    *next = hashtable->table[index].head;
+    hashtable->table[index].head.next = next;
     hashtable->table[index].size++;
+
+    hashtable->table[index].head.elem = word;
+    hashtable->table[index].head.avx_elem = avx_word;
 
     return 0;
 }
@@ -158,7 +154,7 @@ int SearchWord(htab_t* hashtable, const char* word, __m256i* avx_word)
 
 int SearchInList(list_t* list, const char* word, __m256i* avx_word)
 {
-    node_t* node = list->head;
+    node_t* node = &(list->head);
 
     for (size_t list_i = 0; list_i < list->size; list_i++)
     {
@@ -215,12 +211,16 @@ void HTableDtor(htab_t* hashtable)
 
     for (size_t i = 0; i < hashtable->size; i++)
     {
-        node_t* node = hashtable->table[i].head;
-        for (size_t list_i = 0; list_i < hashtable->table[i].size; list_i++)
+        node_t* node = hashtable->table[i].head.next;
+        log("size: %d\n", hashtable->table[i].size);
+        if (hashtable->table[i].size != 0)
         {
-            next_node = node->next;
-            free(node);
-            node = next_node;
+            for (size_t list_i = 0; list_i < hashtable->table[i].size - 1; list_i++)
+            {
+                next_node = node->next;
+                free(node);
+                node = next_node;
+            }
         }
     }
 
@@ -238,7 +238,7 @@ void HTableDump(htab_t* hashtable)
     for (size_t i = 0; i < hashtable->size; i++)
     {
         log("[%d] (%d elems): ", i, hashtable->table[i].size);
-        node_t* node = hashtable->table[i].head;
+        node_t* node = &(hashtable->table[i].head);
         for (size_t list_i = 0; list_i < hashtable->table[i].size; list_i++)
         {
             log("%s ", node->elem);
