@@ -742,6 +742,16 @@ The speed up of `avx_strcmp()` optimization is very small (only 1%). Every list 
 
 The most efficent optimizations are: rewriting `SearchInList()` and changing hash function to `CRC32`.
 
+#### Compiler oprimizations <!-- omit from toc -->
+Now let's test our optimizations in case of using `-O3` flag.
+
+| Optimizations     | Elapsed time (ms per measure)  | Absolute speed up (from baseline) |
+| :-------------------------------------------:   | :---------------: | :----------------: |
+| inc. size  + `-O3` (new baseline)                       | 2.85 | 1    |
+| strcmp + search + crc32 + `-O3` [v.6 + v.1 + v.4 + v.5] | 0.72 | 3.76 |
+
+As we can see, these optimizations are efficent even with compiler opt. flags. The speed up is 3.76 times, which is a really good result for manual optimizations. 
+
 ## Conclusion
 All in all, I tested different hash functions and optimized the process of search in a hash table.
 

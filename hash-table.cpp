@@ -145,12 +145,11 @@ int SearchWord(htab_t* hashtable, const char* word, __m256i* avx_word)
 
     //log("%d\n", hashtable->table[index].head);
 
-int res = 0;
 #ifdef OPT_SEARCH
-    res = asm_SearchInList(&(hashtable->table[index]), word, avx_word);
+    volatile int res = asm_SearchInList(&(hashtable->table[index]), word, avx_word);
     //printf("%d", res);
 #else
-    res = SearchInList(&(hashtable->table[index]), word, avx_word);
+    volatile int res = SearchInList(&(hashtable->table[index]), word, avx_word);
 #endif
 
     return res;
