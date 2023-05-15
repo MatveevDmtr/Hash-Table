@@ -726,6 +726,8 @@ We can admire a fantastic performance: the speed up is really great.
 
 When the load factor is small, we can optimize our hash table by saving list head in list structure. Also, we can save two words to one list node. It may decrease number of pointer transitions while searching in a list.
 
+Hashtable size is 3583, as it was in the previous version [v.6]. There are nearly $1.53$ words in each cell in average (small load factor).
+
 ##### Implementation <!-- omit from toc -->
 
 New list and node structures look like this:
