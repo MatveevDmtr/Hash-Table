@@ -47,7 +47,7 @@ For more information about hash tables follow https://en.wikipedia.org/wiki/Hash
 
 ## Work plan
 Let's create a hash table that contains single linked lists. C++ has been chosen as the main language for realization of our plans.
-Our program should have an oportunity to use different hash functions, so it's advisable to get such function as an argument of `TestSearching` function.
+Our program should have an oportunity to use different hash functions, so it's advisable to get such function as an argument of `TestSearching()` function.
 Then we should fill the table with a great amount of words. I've chosen "Fahrenheit 451" by Ray Bradbury as a text to get words from. I've chosen the original (English) text, you can find it in the folder __text__ of this project.
 
 ##### Part 1. Testing hash functions
