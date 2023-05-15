@@ -2,7 +2,7 @@
 CC=g++
 #В переменной CFLAGS лежат флаги, которые передаются компилятору
 CFLAGS=-c -g -no-pie -mavx2 -msse2 -fno-omit-frame-pointer -std=c++14
-OPTFLAG=-O0
+OPTFLAG=-O3
 MY_OPT=-DOPT_CMP -DOPT_SEARCH -DOPT_CRC32
 
 all: hash-table execute clear

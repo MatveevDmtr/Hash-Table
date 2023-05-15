@@ -33,7 +33,7 @@ This project is a part of MIPT course "Basics of industrial programming" by [I.R
   - [Version 4. Assembly optimization of Hash ROL](#version-4-assembly-optimization-of-hash-rol)
   - [Version 5. Changing hash function to faster one](#version-5-changing-hash-function-to-faster-one)
   - [Version 6. Increasing hash table size](#version-6-increasing-hash-table-size)
-  - [Version 7. Saving list head in list structure](#version-7-saving-list-head-in-list-structure)
+  - [Version 7. Saving list head in list structure \& two words in one node](#version-7-saving-list-head-in-list-structure--two-words-in-one-node)
   - [General analysis](#general-analysis)
 - [Conclusion](#conclusion)
 
@@ -721,17 +721,17 @@ _One measure_ means searching all words from the text for 1 time. Each word is s
 
 We can admire a fantastic performance: the speed up is really great. 
 
-### Version 7. Saving list head in list structure
+### Version 7. Saving list head in list structure & two words in one node
 ##### The idea <!-- omit from toc -->
 
-When the load factor is small, we can optimize our hash table by saving list head in list structure. It may decrease number of pointer transitions while searching in a list.
+When the load factor is small, we can optimize our hash table by saving list head in list structure. Also, we can save two words to one list node. It may decrease number of pointer transitions while searching in a list.
 
 ##### Implementation <!-- omit from toc -->
 
-New list structure looks like this:
+New list and node structures look like this:
 
 <details>
-<summary><b>New structure of list</b></summary>
+<summary><b>New structures of list and node</b></summary>
 
 ~~~C++
 typedef struct hashtable_list
@@ -739,6 +739,16 @@ typedef struct hashtable_list
     node_t head;
     size_t  size;
 } list_t;
+
+typedef struct node
+{
+    const char*  elem1;
+    __m256i* avx_elem1;
+    const char*  elem2;
+    __m256i* avx_elem2;
+    struct node* next;
+
+} node_t;
 ~~~
 </details>
 
@@ -748,14 +758,17 @@ Let's change a bit some functions and makefile to create a new version with this
 As it's a serious change of conditions. let's turn off all previous optimizations and consider Version 6 as a new baseline.
 You can see the effect of this optimization:
 
-| Optimization     | Elapsed time (ms per measure)  | Absolute speed up (from baseline) |
-| :--------------: | :---------------: | :------------------: |
-| strcmp + search + crc32 + inc. size (new baseline) [v.6]                          |      1.27         |     1                |
-| strcmp + search + crc32 + inc. size + headed lists [v.6 + v.1 + v.2 + v.5] [v.7]  |      1.17         |          1.09       |
+| Optimization     | Elapsed time (ms per measure)  | Absolute speed up (from baseline) | Relative speed up (from prev. version) |
+| :--------------: | :---------------: | :------------------: |   :------------------: |
+| strcmp + search + crc32 + inc. size (new baseline) [v.6]                          |      1.02         |     1                | 1   |
+| strcmp + search + crc32 + inc. size + headed lists [v.6 + v.1 + v.2 + v.5] [v.7]  |      0.93         |          1.09       |  1.09   |
+| strcmp + search + crc32 + inc. size + headed lists + two-elems nodes [v.6 + v.1 + v.2 + v.5] [v.7.5]  |      0.55         |          1.85       |          1.69       |
 
 _One measure_ means searching all words from the text for 1 time. Each word is searched 1 time. There are usually 2000 _measures_.
 
-This optimization didn't seem to be efficent, but the speed up is decent: 9%. So, this optimization is successful. 
+This first optimization [v.7] didn't seem to be efficent, but the speed up is decent: 9%.
+The second one exceeded all expectations: the speed up is nearly 1.7 times.
+So, this optimization is really successful. 
 
 
 ### General analysis
@@ -784,8 +797,8 @@ Now let's test our optimizations in case of using `-O3` flag.
 
 | Optimizations     | Elapsed time (ms per measure)  | Absolute speed up (from baseline) |
 | :-------------------------------------------:   | :---------------: | :----------------: |
-| inc. size  + `-O3` (new baseline)                       | 2.85 | 1    |
-| strcmp + search + crc32 + `-O3` [v.6 + v.1 + v.4 + v.5] | 0.72 | 3.76 |
+| inc. size  + `-O3` (new baseline)                       | 2.58 | 1    |
+| strcmp + search + crc32 + double-nodes `-O3` [v.6 + v.1 + v.4 + v.5 + v.7] | 0.27 | 9.56 |
 
 As we can see, these optimizations are efficent even with compiler opt. flags. The speed up is 3.76 times, which is a really good result for manual optimizations. 
 
@@ -794,6 +807,6 @@ All in all, I tested different hash functions and optimized the process of searc
 
 Among the hash functions I tested `Hash_RS` has the best diagram. However, there is a plenty of different hash functions that have different parameters, so choice of hash function can be a whole science. But in this project you can see a method that allows us to compare other hash functions.
 
-My optimizations of strcmp and hash functions made the program faster (the speed up is 9.9 times). So we can consider this work to be successful.
+My optimizations of strcmp and hash functions made the program faster (the speed up is 9.6 times). So we can consider this work to be successful.
 
 I think this work may be useful not only for me, but for other people who work with hash tables.

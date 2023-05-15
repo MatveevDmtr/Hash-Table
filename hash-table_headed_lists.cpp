@@ -106,7 +106,7 @@ int InsertWord(htab_t* hashtable, const char* word, __m256i* avx_word)
 
     for (size_t i = 0; i < hashtable->table[index].size; i++)
     {
-        if (strcmp(word, node->elem) == 0)
+        if (strcmp(word, node->elem1) == 0 || strcmp(word, node->elem2) == 0)
         {
             log("Word %s is already here\n", word);
             return 0;
@@ -114,13 +114,28 @@ int InsertWord(htab_t* hashtable, const char* word, __m256i* avx_word)
         node = node->next;
     }
 
-    node_t* next = NewNode(word, avx_word);
-    *next = hashtable->table[index].head;
-    hashtable->table[index].head.next = next;
-    hashtable->table[index].size++;
+    if (hashtable->table[index].head.elem1 == nullptr)
+    {
+        hashtable->table[index].head.elem1 = word;
+        hashtable->table[index].head.avx_elem1 = avx_word;
+    }
+    else if (hashtable->table[index].head.elem2 != nullptr)
+    {
+        node_t* next = NewNode(word, avx_word);
+        *next = hashtable->table[index].head;
+        hashtable->table[index].head.next = next;
+        hashtable->table[index].size++;
 
-    hashtable->table[index].head.elem = word;
-    hashtable->table[index].head.avx_elem = avx_word;
+        hashtable->table[index].head.elem1 = word;
+        hashtable->table[index].head.avx_elem1 = avx_word;    
+    }
+    else
+    {
+        hashtable->table[index].head.elem2 = word;
+        hashtable->table[index].head.avx_elem2 = avx_word;
+    }
+
+    
 
     return 0;
 }
@@ -143,8 +158,9 @@ int SearchWord(htab_t* hashtable, const char* word, __m256i* avx_word)
 
 
 #ifdef OPT_SEARCH
+    log("start list search\n");
     volatile int res = asm_SearchInList(&(hashtable->table[index]), word, avx_word);
-    //printf("%d", res);
+    log("finish list search\n");
 #else
     volatile int res = SearchInList(&(hashtable->table[index]), word, avx_word);
 #endif
@@ -159,13 +175,13 @@ int SearchInList(list_t* list, const char* word, __m256i* avx_word)
     for (size_t list_i = 0; list_i < list->size; list_i++)
     {
 #ifdef OPT_CMP
-        if (avx_strcmp(node->avx_elem, avx_word) == 0)
+        if (avx_strcmp(node->avx_elem1, avx_word) == 0 || avx_strcmp(node->avx_elem2, avx_word) == 0)
         {
             //log("Word \"%s\" found!\n", word);
             return list_i;
         }
 #else
-        if (strcmp(node->elem, word) == 0)
+        if (strcmp(node->elem1, word) == 0 || strcmp(node->elem2, word) == 0)
         {
             //log("Word \"%s\" found!\n", word);
             return list_i;
@@ -185,8 +201,8 @@ node_t* NewNode(const char* word, __m256i* avx_word)
     node_t* node = (node_t*) calloc (1, sizeof(node_t));
     Assert(node == nullptr);
     
-    node->elem = word;
-    node->avx_elem = avx_word;
+    node->elem1 = word;
+    node->avx_elem1 = avx_word;
     
     return node;
 }
@@ -215,7 +231,7 @@ void HTableDtor(htab_t* hashtable)
         log("size: %d\n", hashtable->table[i].size);
         if (hashtable->table[i].size != 0)
         {
-            for (size_t list_i = 0; list_i < hashtable->table[i].size - 1; list_i++)
+            while (node)
             {
                 next_node = node->next;
                 free(node);
@@ -241,7 +257,7 @@ void HTableDump(htab_t* hashtable)
         node_t* node = &(hashtable->table[i].head);
         for (size_t list_i = 0; list_i < hashtable->table[i].size; list_i++)
         {
-            log("%s ", node->elem);
+            //log("%s ", node->elem);
             node = node->next;
         }
         log("\n");

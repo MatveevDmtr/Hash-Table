@@ -32,16 +32,32 @@ asm_SearchInList:
 
     mov r9, rdi         ; r9 = list->head
 
-    mov rcx, [rdi+0x18]    ; counter = list size
-    ;inc rcx
+    mov rcx, [rdi+0x28]    ; counter = list size
+
 .loop_list:
-    mov rdi, [r9+0x10]
+    mov rax, r9
+    add rax, 0x8
+    test eax, eax
+    jne .word_not_found
+    mov rdi, [r9+0x8]
     mov rsi, rdx
     call avx_strcmp     ; cmp words
 
     test eax, eax       ; equal?
     jne .word_found
-    mov r9, [r9+0x8]
+
+    mov rax, r9
+    add rax, 0x18
+    test eax, eax
+    jne .word_not_found
+    mov rdi, [r9+0x18]
+    mov rsi, rdx
+    call avx_strcmp     ; cmp words
+
+    test eax, eax       ; equal?
+    jne .word_found
+
+    mov r9, [r9+0x20]
     loop .loop_list
 
 .word_not_found:

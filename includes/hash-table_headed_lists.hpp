@@ -14,9 +14,11 @@
 
 typedef struct node
 {
-    const char*  elem;
+    const char*  elem1;
+    __m256i* avx_elem1;
+    const char*  elem2;
+    __m256i* avx_elem2;
     struct node* next;
-    __m256i* avx_elem;
 
 } node_t;
 
